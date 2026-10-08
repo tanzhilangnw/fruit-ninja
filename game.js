@@ -1,54 +1,280 @@
 'use strict';
+
 (() => {
-const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
-const atlas=new Image();atlas.src='fruits.png';
-const crops=[[0,0,512,460],[512,0,512,460],[1024,0,512,460],[0,460,512,564],[512,460,512,564],[1024,460,512,564]];
-const colors=['#e74047','#ffa624','#f24a34','#ffd848','#f3324c','#f2ab48'];
-const fruits=[],halves=[],drops=[],stains=[],labels=[],trail=[];
-let W=innerWidth,H=innerHeight,dpr=1,phase='menu',mode='classic',score=0,misses=0,left=60,elapsed=0,nextWave=0,shake=0,flash=0,countdown=0,strokeCount=0,strokeAt=0,strokeCenter={x:0,y:0},held=false,previous=null,lastFrame=0,lastClock=0;
-let audio=null,sound=true,messageTimer=0,endingTimer=0;
-const rand=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function record(){try{return Number(localStorage.getItem('dojo-best-'+mode)||0)||0}catch{return 0}}
-function save(){const b=Math.max(record(),score);try{localStorage.setItem('dojo-best-'+mode,String(b))}catch{}return b}
-function resize(){W=canvas.clientWidth;H=canvas.clientHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)}
-addEventListener('resize',resize);resize();
-function initAudio(){if(!audio){try{audio=new(window.AudioContext||window.webkitAudioContext)()}catch{}}if(audio?.state==='suspended')audio.resume().catch(()=>{})}
-function tone(freq,len,type='sine',volume=.07,slide=0){if(!sound||!audio)return;const t=audio.currentTime,o=audio.createOscillator(),g=audio.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+len);g.gain.setValueAtTime(volume,t);g.gain.exponentialRampToValueAtTime(.001,t+len);o.connect(g);g.connect(audio.destination);o.start(t);o.stop(t+len)}
-function noise(len,vol,filter=2000){if(!sound||!audio)return;const b=audio.createBuffer(1,Math.ceil(audio.sampleRate*len),audio.sampleRate),data=b.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*(1-i/data.length);const s=audio.createBufferSource(),g=audio.createGain(),f=audio.createBiquadFilter();s.buffer=b;f.type='lowpass';f.frequency.value=filter;g.gain.value=vol;s.connect(f);f.connect(g);g.connect(audio.destination);s.start()}
-function say(text,time=1000){clearTimeout(messageTimer);$('centerMessage').textContent=text;messageTimer=setTimeout(()=>$('centerMessage').textContent='',time)}
-function hud(){ $('score').textContent=score;$('best').textContent=record();$('status').textContent=phase==='menu'?'水果道场':mode==='arcade'?Math.ceil(left)+' 秒':Array.from({length:3},(_,i)=>i<misses?'✕':'◇').join(' ');$('status').style.color=mode==='classic'&&misses?'#ff7855':'#ffe3ae'}
-function clearWorld(){fruits.length=halves.length=drops.length=stains.length=labels.length=trail.length=0;held=false;previous=null;strokeCount=0;shake=flash=0}
-function start(selected=mode){if(!['classic','arcade'].includes(selected))throw new Error('未知模式');clearTimeout(endingTimer);clearTimeout(messageTimer);initAudio();mode=selected;phase='countdown';score=misses=elapsed=0;left=60;nextWave=.25;countdown=2.8;lastClock=-1;clearWorld();$('menu').hidden=true;$('overlay').hidden=true;$('pause').hidden=false;$('pause').textContent='Ⅱ';$('pause').setAttribute('aria-label','暂停游戏');$('footerMode').textContent=mode==='classic'?'经典模式':'限时模式';hud();say('准备',650);return state()}
-function home(){clearTimeout(endingTimer);clearTimeout(messageTimer);clearWorld();phase='menu';$('menu').hidden=false;$('overlay').hidden=true;$('pause').hidden=true;$('centerMessage').textContent='';hud();return state()}
-function finish(reason){if(!['playing','ending'].includes(phase))return;phase='over';held=false;previous=null;trail.length=0;$('centerMessage').textContent='';$('overlay').hidden=false;$('pause').hidden=true;const old=record(),best=save();$('resultLabel').textContent=mode==='classic'?'经典模式 · 修炼结束':'限时模式 · 时间到';$('resultTitle').textContent=score>old?'新的最高纪录':reason;$('resultScore').textContent=score;$('resultDetail').textContent=`切中 ${stats.cut} 个水果 · 最高连击 ${stats.combo} · 最高分 ${best}`;$('again').textContent='再来一局';hud();tone(330,.25,'triangle',.09);setTimeout(()=>tone(440,.35,'triangle',.08),150)}
-let stats={cut:0,combo:0};
-function pause(){if(phase==='paused'){phase='playing';$('overlay').hidden=true;$('pause').textContent='Ⅱ';$('pause').setAttribute('aria-label','暂停游戏');return state()}if(phase!=='playing')return state();flushStroke();phase='paused';held=false;previous=null;trail.length=0;$('overlay').hidden=false;$('resultLabel').textContent='稍作休息';$('resultTitle').textContent='刀锋暂歇';$('resultScore').textContent=score;$('resultDetail').textContent=mode==='classic'?'漏切 '+misses+' / 3':Math.ceil(left)+' 秒剩余';$('again').textContent='继续游戏';$('pause').textContent='▶';$('pause').setAttribute('aria-label','继续游戏');return state()}
-function state(){return {phase,mode,score,misses,seconds:Math.ceil(left),best:record(),fruitCount:fruits.filter(f=>!f.dead&&!f.bomb).length}}
-function spawnWave(){const n=Math.min(7,2+Math.floor(elapsed/18)+Math.floor(rand(0,3))),center=rand(W*.25,W*.75),r=clamp(W*.045,25,54),flightH=clamp(H*.59,210,580),gravity=H*.9,velocity=-Math.sqrt(2*gravity*flightH);for(let i=0;i<n;i++){const x=clamp(center+(i-(n-1)/2)*r*1.2+rand(-r*.3,r*.3),r,W-r);fruits.push({x,y:H+r,px:x,py:H+r,vx:(W/2-x)*.14+rand(-60,60),vy:velocity+rand(-45,25),r:r*rand(.86,1.13),angle:rand(-1,1),spin:rand(-1.8,1.8),type:Math.floor(rand(0,5)),bomb:false,dead:false,entered:false})}if(elapsed>3&&Math.random()<Math.min(.48,.18+elapsed*.003)){const x=clamp(center+rand(-140,140),r,W-r);fruits.push({x,y:H+r*2,px:x,py:H+r*2,vx:(W/2-x)*.14+rand(-60,60),vy:velocity+rand(-40,20),r:r*.95,angle:rand(-.5,.5),spin:rand(-.6,.6),type:5,bomb:true,dead:false,entered:false})}nextWave=rand(1.15,1.8)*Math.max(.62,1-elapsed/220)}
-function sprite(type,x,y,r,angle=0,part=0){if(!atlas.complete||!atlas.naturalWidth)return;ctx.save();ctx.translate(x,y);ctx.rotate(angle);const c=crops[type],width=r*2.2,height=width*c[3]/c[2];if(part){ctx.beginPath();ctx.rect(part<0?-width/2:0,-height/2,width/2,height);ctx.clip()}ctx.drawImage(atlas,...c,-width/2,-height/2,width,height);if(part){ctx.fillStyle=type===0?'#ff5664':type===1?'#ffd274':type===2?'#fff1b8':type===3?'#ffe189':'#ff8491';ctx.fillRect(part<0?-3:0,-r*.58,3,r*1.16)}ctx.restore()}
-function addSplash(f){const color=colors[f.type];for(let i=0;i<24;i++){const a=rand(0,Math.PI*2),v=rand(90,420);drops.push({x:f.x,y:f.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:rand(2,7),life:rand(.45,1),max:1,color})}const splat={x:f.x,y:f.y,r:f.r*.8,color,life:7,spots:[]};for(let i=0;i<14;i++){const a=rand(0,Math.PI*2),v=rand(.6,2.5);splat.spots.push({x:Math.cos(a)*f.r*v,y:Math.sin(a)*f.r*v,r:rand(2,11)})}stains.push(splat);if(stains.length>24)stains.shift()}
-function slice(f){f.dead=true;if(f.bomb){noise(.6,.6,500);tone(70,.55,'sawtooth',.14,25);shake=.65;flash=.45;strokeCount=0;strokeAt=0;fruits.forEach(v=>v.dead=true);for(let i=0;i<65;i++){const a=rand(0,Math.PI*2),v=rand(80,650);drops.push({x:f.x,y:f.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:rand(3,12),life:rand(.4,1.1),max:1,color:i%2?'#ffb643':'#d73f18'})}if(mode==='classic'){phase='ending';say('炸弹！',1000);endingTimer=setTimeout(()=>finish('小心炸弹'),800)}else{score=Math.max(0,score-10);labels.push({x:f.x,y:f.y,text:'炸弹 −10',life:1.2,color:'#ff725c',size:30});say('小心炸弹',650)}hud();return}score++;stats.cut++;strokeCount++;strokeAt=performance.now();strokeCenter={x:f.x,y:f.y};stats.combo=Math.max(stats.combo,strokeCount);addSplash(f);for(const side of [-1,1])halves.push({...f,dead:false,part:side,vx:f.vx+side*rand(90,160),vy:f.vy*.25-rand(20,80),spin:side*rand(1.5,3.5),life:2.3});noise(.10,.16,2500);tone(550+Math.min(strokeCount,8)*100,.07,'triangle',.05,250);labels.push({x:f.x,y:f.y-20,text:'+1',life:.65,color:'#ffe9a6',size:26});hud()}
-function flushStroke(){if(strokeCount>=3){const bonus=strokeCount*2;score+=bonus;labels.push({x:strokeCenter.x,y:Math.max(140,strokeCenter.y-65),text:strokeCount+' 连击！ +'+bonus,life:1.2,color:'#ffd15c',size:clamp(W*.036,26,45)});tone(880,.16,'triangle',.12);setTimeout(()=>tone(1175,.18,'triangle',.09),75);hud()}strokeCount=0;strokeAt=0}
-function distance(x,y,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,len=dx*dx+dy*dy,t=len?clamp(((x-ax)*dx+(y-ay)*dy)/len,0,1):0;return Math.hypot(x-ax-t*dx,y-ay-t*dy)}
-function cutSegment(a,b){if(phase!=='playing')return;if(strokeAt&&performance.now()-strokeAt>240)flushStroke();const length=Math.hypot(b.x-a.x,b.y-a.y);if(length<2)return;for(const f of fruits){if(!f.dead&&distance(f.x,f.y,a.x,a.y,b.x,b.y)<f.r*.88){slice(f);if(phase!=='playing')break}}}
-function point(e){const rect=canvas.getBoundingClientRect();return {x:e.clientX-rect.left,y:e.clientY-rect.top,t:performance.now()}}
-canvas.addEventListener('pointerdown',e=>{if(phase!=='playing')return;e.preventDefault();initAudio();held=true;previous=point(e);trail.push(previous);canvas.setPointerCapture(e.pointerId)});
-canvas.addEventListener('pointermove',e=>{if(!held||phase!=='playing')return;e.preventDefault();const events=e.getCoalescedEvents?.()||[e];for(const event of events){const p=point(event);if(previous)cutSegment(previous,p);trail.push(p);previous=p}});
-function release(){if(held)flushStroke();held=false;previous=null}canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);canvas.addEventListener('lostpointercapture',release);
-$('classic').onclick=()=>{stats={cut:0,combo:0};start('classic')};$('arcade').onclick=()=>{stats={cut:0,combo:0};start('arcade')};$('again').onclick=()=>{if(phase==='paused')pause();else{stats={cut:0,combo:0};start(mode)}};$('home').onclick=home;$('pause').onclick=pause;
-$('sound').onclick=()=>{initAudio();sound=!sound;$('sound').textContent=sound?'♫':'♪̸';$('sound').setAttribute('aria-label',sound?'关闭声音':'开启声音');$('sound').title=sound?'关闭声音':'开启声音';if(sound)tone(660,.12)};
-addEventListener('keydown',e=>{if(e.code==='Escape'||e.code==='Space'){if(phase==='playing'||phase==='paused'){e.preventDefault();pause()}}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='playing')pause()});
-function update(dt,now){if(phase==='countdown'){countdown-=dt;const c=Math.ceil(countdown);if(c!==lastClock){lastClock=c;if(c>0){$('centerMessage').textContent=c;tone(330,.09,'triangle',.06)}}if(countdown<=0){phase='playing';say('开切！',500);tone(660,.15,'triangle',.08)}return}if(phase==='playing'){elapsed+=dt;nextWave-=dt;if(nextWave<=0)spawnWave();if(mode==='arcade'){left=Math.max(0,60-elapsed);hud();if(left<=0){flushStroke();finish('时间到');return}}if(strokeAt&&now-strokeAt>240)flushStroke();}
-if(!['playing','ending'].includes(phase))return;
-const gravity=H*.9;for(let i=fruits.length-1;i>=0;i--){const f=fruits[i];if(f.dead){fruits.splice(i,1);continue}f.px=f.x;f.py=f.y;f.x+=f.vx*dt;f.vy+=gravity*dt;f.y+=f.vy*dt;f.angle+=f.spin*dt;if(f.y<H-f.r)f.entered=true;if(f.y>H+f.r*3&&f.vy>0){fruits.splice(i,1);if(!f.bomb&&f.entered&&phase==='playing'&&mode==='classic'){misses++;labels.push({x:clamp(f.x,70,W-70),y:H-100,text:'漏切',life:.8,color:'#ff7a50',size:25});tone(180,.13,'triangle',.06);hud();if(misses>=3){flushStroke();finish('三次漏切');return}}}}
-for(let i=halves.length-1;i>=0;i--){const f=halves[i];f.x+=f.vx*dt;f.vy+=gravity*dt;f.y+=f.vy*dt;f.angle+=f.spin*dt;f.life-=dt;if(f.life<0||f.y>H+200)halves.splice(i,1)}
-for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.x+=d.vx*dt;d.vy+=gravity*.6*dt;d.y+=d.vy*dt;d.life-=dt;if(d.life<=0)drops.splice(i,1)}
-for(let i=stains.length-1;i>=0;i--){stains[i].life-=dt;if(stains[i].life<=0)stains.splice(i,1)}for(let i=labels.length-1;i>=0;i--){labels[i].life-=dt;labels[i].y-=35*dt;if(labels[i].life<=0)labels.splice(i,1)}shake=Math.max(0,shake-dt);flash=Math.max(0,flash-dt);
-}
-function draw(now){ctx.clearRect(0,0,W,H);ctx.save();if(shake)ctx.translate(rand(-10,10)*shake,rand(-10,10)*shake);for(const s of stains){ctx.globalAlpha=Math.min(.28,s.life*.16);ctx.fillStyle=s.color;ctx.beginPath();ctx.ellipse(s.x,s.y,s.r,s.r*.7,0,0,Math.PI*2);ctx.fill();for(const p of s.spots){ctx.beginPath();ctx.arc(s.x+p.x,s.y+p.y,p.r,0,Math.PI*2);ctx.fill()}}ctx.globalAlpha=1;for(const f of fruits){sprite(f.type,f.x,f.y,f.r,f.angle);if(f.bomb){ctx.strokeStyle='#ff985955';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,f.r*1.1,0,Math.PI*2);ctx.stroke()}}for(const f of halves){ctx.globalAlpha=Math.min(1,f.life);sprite(f.type,f.x,f.y,f.r,f.angle,f.part)}ctx.globalAlpha=1;for(const d of drops){ctx.globalAlpha=clamp(d.life*2,0,1);ctx.fillStyle=d.color;ctx.beginPath();ctx.ellipse(d.x,d.y,d.r,d.r*.7,Math.atan2(d.vy,d.vx),0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1;for(const l of labels){ctx.globalAlpha=Math.min(1,l.life*3);ctx.font=`900 ${l.size}px system-ui`;ctx.textAlign='center';ctx.lineJoin='round';ctx.strokeStyle='#391206';ctx.lineWidth=5;ctx.strokeText(l.text,l.x,l.y);ctx.fillStyle=l.color;ctx.fillText(l.text,l.x,l.y)}ctx.globalAlpha=1;ctx.restore();while(trail.length&&now-trail[0].t>150)trail.shift();if(trail.length>1){ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.shadowColor='#7cdbff';ctx.shadowBlur=16;for(let i=1;i<trail.length;i++){const a=trail[i-1],b=trail[i],alpha=clamp(1-(now-b.t)/150,0,1);ctx.strokeStyle=`rgba(183,237,255,${alpha})`;ctx.lineWidth=2+7*(i/trail.length);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}ctx.shadowBlur=0;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.restore()}if(flash){ctx.fillStyle=`rgba(255,206,140,${flash*1.5})`;ctx.fillRect(0,0,W,H)}}
-function frame(now){const dt=Math.min((now-lastFrame)/1000||0,.035);lastFrame=now;update(dt,now);draw(now);requestAnimationFrame(frame)}
-hud();requestAnimationFrame(frame);
-// Page tools share exactly the same actions as the visible controls.
-const model=document.modelContext;if(model?.registerTool){const life=new AbortController();for(const tool of [{name:'read_game_state',description:'Read the current game phase, mode, score and remaining time.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>state()},{name:'start_fruit_game',description:'Start a fresh game, resetting the score, with a three-second countdown.',inputSchema:{type:'object',properties:{mode:{type:'string',enum:['classic','arcade']}},required:['mode'],additionalProperties:false},annotations:{readOnlyHint:false},execute:input=>{if(!input||!['classic','arcade'].includes(input.mode))throw new Error('mode must be classic or arcade');stats={cut:0,combo:0};return start(input.mode)}},{name:'toggle_game_pause',description:'Pause a running game or resume a paused game.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:pause}]){try{Promise.resolve(model.registerTool(tool,{signal:life.signal})).catch(()=>{})}catch{}}addEventListener('pagehide',()=>life.abort(),{once:true})}
+  const $ = id => document.getElementById(id);
+  const canvas = $('game'), ctx = canvas.getContext('2d');
+  const game = new FruitEngine({ width: innerWidth, height: innerHeight });
+  const atlas = new Image(), specials = new Image();
+  atlas.src = 'fruits.png'; specials.src = 'specials.png';
+  const crops = [[0,0,512,460],[512,0,512,460],[1024,0,512,460],[0,460,512,564],[512,460,512,564],[1024,460,512,564]];
+  const juice = ['#f34853','#ffb52e','#f85735','#ffd94c','#ef3258','#f4a743','#78b9ff','#93eaff','#ff8143','#e82b57'];
+  const effectNames = { double: '双倍得分', freeze: '冰冻时间', frenzy: '水果狂热' };
+  const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff' };
+  const halves = [], particles = [], stains = [], labels = [], rings = [], trail = [];
+  let width = innerWidth, height = innerHeight, lastFrame = 0, activePointer = null, previous = null;
+  let shake = 0, flash = 0, messageLife = 0, audio = null, loading = true, hudKey = '', ambient = 0;
+  const random = (min,max) => min + Math.random() * (max-min);
+  const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function read(key,fallback) { try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; } }
+  function write(key,value) { try { localStorage.setItem(key,String(value)); } catch {} }
+  function best(mode = game.mode) { return Number(read('dojo-best-'+mode,0)) || 0; }
+  let blade = read('dojo-blade','frost'), background = read('dojo-background','wood'), sound = read('dojo-sound','on') !== 'off';
+  if (!Object.hasOwn(bladeColors,blade)) blade = 'frost';
+  if (!['wood','night'].includes(background)) background = 'wood';
+
+  function resize() {
+    width = canvas.clientWidth; height = canvas.clientHeight;
+    const ratio = Math.min(devicePixelRatio || 1,2);
+    canvas.width = Math.round(width*ratio); canvas.height = Math.round(height*ratio);
+    ctx.setTransform(ratio,0,0,ratio,0,0); game.width = width; game.height = height;
+  }
+  addEventListener('resize',resize); resize();
+  function initAudio() {
+    if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch {} }
+    if (audio?.state === 'suspended') audio.resume().catch(() => {});
+  }
+  function tone(frequency,duration,volume = .06,end = frequency) {
+    if (!sound || !audio) return;
+    const time = audio.currentTime, oscillator = audio.createOscillator(), gain = audio.createGain();
+    oscillator.type = 'triangle'; oscillator.frequency.setValueAtTime(frequency,time);
+    oscillator.frequency.exponentialRampToValueAtTime(end,time+duration);
+    gain.gain.setValueAtTime(volume,time); gain.gain.exponentialRampToValueAtTime(.001,time+duration);
+    oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(time); oscillator.stop(time+duration);
+  }
+  function noise(duration,volume,cutoff = 2200) {
+    if (!sound || !audio) return;
+    const buffer = audio.createBuffer(1,Math.ceil(audio.sampleRate*duration),audio.sampleRate), data = buffer.getChannelData(0);
+    for (let i=0;i<data.length;i++) data[i] = (Math.random()*2-1)*(1-i/data.length);
+    const source = audio.createBufferSource(), gain = audio.createGain(), filter = audio.createBiquadFilter();
+    source.buffer = buffer; filter.type = 'lowpass'; filter.frequency.value = cutoff; gain.gain.value = volume;
+    source.connect(filter); filter.connect(gain); gain.connect(audio.destination); source.start();
+  }
+  function announce(text,duration = 1) {
+    $('centerMessage').textContent = text; messageLife = duration;
+    $('centerMessage').classList.remove('pop'); void $('centerMessage').offsetWidth; $('centerMessage').classList.add('pop');
+  }
+  function label(text,x,y,color = '#ffdfa0',size = 25,life = 1) {
+    labels.push({text,x:clamp(x,90,width-90),y,color,size,life});
+  }
+  function clearVisuals() {
+    halves.length = particles.length = stains.length = labels.length = rings.length = trail.length = 0;
+    activePointer = previous = null; shake = flash = messageLife = 0; $('centerMessage').textContent = '';
+  }
+  function start(mode) {
+    if (loading) return;
+    initAudio(); clearVisuals(); game.start(mode); $('menu').hidden = true; $('overlay').hidden = true;
+    $('effects').hidden = false; $('pause').hidden = false;
+    $('footerTip').textContent = mode === 'arcade' ? '特殊香蕉可以叠加 · 持续连击触发 BLITZ' : mode === 'zen'
+      ? '放松下来，等水果到最高点再划切' : '漏切三次或切中炸弹，修炼结束';
+    handleEvents(); updateHud(); return game.snapshot();
+  }
+  function home() {
+    game.home(); clearVisuals(); $('menu').hidden = false; $('overlay').hidden = true;
+    $('pause').hidden = true; $('effects').hidden = true; $('footerTip').textContent = '按住鼠标划切 · 手机用手指滑动'; updateHud();
+  }
+  function pause() { game.togglePause(); handleEvents(); updateHud(); return game.snapshot(); }
+  function showResult(event) {
+    activePointer = previous = null; trail.length = 0;
+    const old = best(); write('dojo-best-'+game.mode,Math.max(old,event.score));
+    $('overlay').hidden = false; $('pause').hidden = true;
+    $('resultLabel').textContent = FruitEngine.MODES[game.mode].name+'模式 · 修炼完成';
+    $('resultTitle').textContent = event.score > old ? '新的最高纪录' : event.reason;
+    $('resultScore').textContent = event.score; $('resultDetail').textContent = '个人最佳 '+best();
+    $('resultStats').hidden = false; $('cutStat').textContent = event.stats.cut; $('comboStat').textContent = event.stats.maxCombo;
+    $('criticalStat').textContent = event.stats.criticals; $('bossStat').textContent = event.stats.bossHits;
+    $('awards').replaceChildren();
+    for (const award of event.awards) {
+      const item = document.createElement('div'), name = document.createElement('span'), points = document.createElement('b');
+      item.className = 'award'; name.textContent = award.label; points.textContent = '+'+award.points;
+      item.append(name,points); $('awards').append(item);
+    }
+    $('again').textContent = '再来一局'; tone(440,.25,.08); tone(660,.5,.06);
+  }
+  function splash(fruit,count = 26,color = juice[fruit.type]) {
+    for (let i=0;i<(reducedMotion ? Math.min(count,12) : count);i++) {
+      const angle = random(0,Math.PI*2), speed = random(90,460);
+      particles.push({x:fruit.x,y:fruit.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:random(2,7),life:random(.45,1.1),color});
+    }
+    if (particles.length>850) particles.splice(0,particles.length-850);
+    if (fruit.type<5 || fruit.type===9) {
+      const stain = {x:fruit.x,y:fruit.y,r:fruit.r*.7,color,life:6,spots:[]};
+      for (let i=0;i<12;i++) { const a = random(0,Math.PI*2), spread = random(.6,2.2)*fruit.r;
+        stain.spots.push({x:Math.cos(a)*spread,y:Math.sin(a)*spread,r:random(3,10)}); }
+      stains.push(stain); if (stains.length>25) stains.shift();
+    }
+  }
+  function split(fruit) {
+    for (const side of [-1,1]) halves.push({...fruit,part:side,vx:fruit.vx+side*random(90,160),
+      vy:fruit.vy*.2-random(15,90),spin:side*random(1.5,3.5),life:2.2});
+  }
+  function handleEvents() {
+    for (const event of game.drainEvents()) switch (event.type) {
+      case 'countdown': announce(String(event.number),1.1); tone(330,.1); break;
+      case 'start': announce('开切！',.7); tone(660,.15); break;
+      case 'slice':
+        split(event.fruit); splash(event.fruit); noise(.1,.13); tone(600+game.stroke.count*70,.06,.04,260);
+        if (event.critical) { label('暴击！ +'+event.points,event.fruit.x,event.fruit.y-40,'#ffed85',32,1.1);
+          rings.push({x:event.fruit.x,y:event.fruit.y,life:.5,color:'#ffde56',size:160}); shake = reducedMotion ? 0 : .13;
+        } else if (event.points) label('+'+event.points,event.fruit.x,event.fruit.y-15); break;
+      case 'combo': label(event.count+' 连击  +'+event.bonus,event.x,Math.max(150,event.y-65),
+        event.count>=6 ? '#ff9c6c' : '#ffe088',clamp(width*.035,27,43),1.25); tone(880,.15,.1); tone(1175,.24,.06); break;
+      case 'power': announce(effectNames[event.effect]+'！',1.15);
+        rings.push({x:event.fruit.x,y:event.fruit.y,life:.8,color:juice[event.fruit.type],size:width});
+        tone(event.effect==='freeze' ? 1300 : 720,.3,.09,1100); break;
+      case 'stack': announce('三重力量！',1.25); break;
+      case 'blitz': announce(['','BLITZ · 连击爆发','SUPER BLITZ','MEGA BLITZ'][event.level],1); break;
+      case 'bomb': splash(event.fruit,70,'#ff9538'); noise(.55,.5,450); tone(80,.6,.12,25);
+        shake = reducedMotion ? 0 : .65; flash = reducedMotion ? 0 : .35;
+        announce(game.mode==='classic' ? '炸弹！' : '炸弹 −10',.9); break;
+      case 'miss': label('漏切',event.x,height-100,'#ff8464'); tone(170,.12); break;
+      case 'finale': announce('石榴连斩！',1); break;
+      case 'bossHit': splash(event.fruit,10); label('+'+event.points,event.fruit.x+random(-65,65),event.fruit.y-50,'#ffb9c6',23,.6);
+        tone(450+event.hits*20,.05,.045); rings.push({x:event.fruit.x,y:event.fruit.y,life:.25,color:'#ff6b97',size:120}); break;
+      case 'bossBurst': splash(event.fruit,100); flash = reducedMotion ? 0 : .2; break;
+      case 'pause': activePointer = previous = null; trail.length = 0; $('overlay').hidden = false;
+        $('resultLabel').textContent = '稍作休息'; $('resultTitle').textContent = '刀锋暂歇'; $('resultScore').textContent = game.score;
+        $('resultDetail').textContent = '继续你的'+FruitEngine.MODES[game.mode].name+'修炼'; $('resultStats').hidden = true;
+        $('awards').replaceChildren(); $('again').textContent = '继续游戏'; break;
+      case 'resume': $('overlay').hidden = true; break;
+      case 'over': showResult(event); break;
+    }
+  }
+  function updateHud() {
+    const state = game.snapshot(), key = JSON.stringify([state.phase,state.mode,state.score,state.misses,state.seconds,state.blitz,best()]);
+    if (key!==hudKey) {
+      hudKey = key; $('score').textContent = state.score; $('best').textContent = best();
+      $('status').textContent = state.phase==='menu' ? '选择你的修炼' : state.mode==='classic'
+        ? Array.from({length:3},(_,i)=>i<state.misses?'✕':'◇').join(' ') : state.phase==='finale' ? '最终连斩' : state.seconds+' 秒';
+      $('status').classList.toggle('danger',state.mode==='classic' ? state.misses>0 : state.seconds<=10);
+      $('pause').textContent = state.phase==='paused' ? '▶' : 'Ⅱ';
+      $('pause').setAttribute('aria-label',state.phase==='paused' ? '继续游戏' : '暂停游戏');
+      $('footerMode').textContent = FruitEngine.MODES[state.mode].name+'模式';
+      for (const mode of ['classic','arcade','zen']) $('best-'+mode).textContent = best(mode);
+    }
+    for (const effect of ['double','freeze','frenzy']) {
+      $('dojo').dataset[effect] = String(game.effects[effect]>0);
+      const badge = $('effect-'+effect); badge.hidden = game.effects[effect]<=0;
+      badge.querySelector('b').textContent = Math.ceil(game.effects[effect])+'s';
+      badge.style.setProperty('--remaining',game.effects[effect]/8*100+'%');
+    }
+    $('blitz').hidden = !game.blitz || !['playing','paused'].includes(game.phase);
+    $('blitz').querySelector('b').textContent = ['','BLITZ','SUPER BLITZ','MEGA BLITZ'][game.blitz];
+    $('blitz').style.setProperty('--remaining',game.blitzRemaining/6*100+'%');
+    $('bossHint').hidden = game.phase!=='finale';
+    if (game.phase==='finale') $('bossHint').textContent = '快速反复划切 · '+Math.ceil(game.bossRemaining)+'s · '+game.stats.bossHits+' 斩';
+  }
+  function sprite(fruit,part = 0) {
+    const special = fruit.type>=6, image = special ? specials : atlas;
+    if (!image.complete || !image.naturalWidth) return;
+    const cell = image.naturalWidth/2;
+    const crop = special ? [(fruit.type-6)%2*cell,Math.floor((fruit.type-6)/2)*image.naturalHeight/2,cell,image.naturalHeight/2] : crops[fruit.type];
+    const w = fruit.r*2.25, h = w*crop[3]/crop[2];
+    ctx.save(); ctx.translate(fruit.x,fruit.y); ctx.rotate(fruit.angle);
+    if (part) { ctx.beginPath(); ctx.rect(part<0 ? -w/2 : 0,-h/2,w/2,h); ctx.clip(); }
+    ctx.drawImage(image,...crop,-w/2,-h/2,w,h);
+    if (part && fruit.type<5) { ctx.fillStyle = ['#ff6c7c','#ffd88a','#fff0b8','#ffe57c','#ff7796'][fruit.type];
+      ctx.fillRect(part<0 ? -3 : 0,-fruit.r*.56,3,fruit.r*1.12); }
+    ctx.restore();
+  }
+  function updateVisuals(dt) {
+    if (game.phase==='paused') return;
+    const step = dt*(game.effects.freeze>0 ? .43 : 1);
+    for (let i=halves.length-1;i>=0;i--) { const f = halves[i]; f.x+=f.vx*step; f.vy+=height*.9*step; f.y+=f.vy*step;
+      f.angle+=f.spin*step; f.life-=dt; if (f.life<=0 || f.y>height+160) halves.splice(i,1); }
+    for (let i=particles.length-1;i>=0;i--) { const p = particles[i]; p.x+=p.vx*step; p.vy+=height*.5*step; p.y+=p.vy*step;
+      p.life-=dt; if (p.life<=0) particles.splice(i,1); }
+    for (const list of [stains,labels,rings]) for (let i=list.length-1;i>=0;i--) {
+      list[i].life-=dt; if (list===labels) list[i].y-=32*dt; if (list[i].life<=0) list.splice(i,1); }
+    shake = Math.max(0,shake-dt); flash = Math.max(0,flash-dt); messageLife-=dt;
+    if (messageLife<=0) $('centerMessage').textContent = '';
+  }
+  function draw(now) {
+    ctx.clearRect(0,0,width,height); ctx.save(); if (shake) ctx.translate(random(-10,10)*shake,random(-10,10)*shake);
+    for (const s of stains) { ctx.globalAlpha = Math.min(.25,s.life*.13); ctx.fillStyle = s.color;
+      ctx.beginPath(); ctx.ellipse(s.x,s.y,s.r,s.r*.65,0,0,Math.PI*2); ctx.fill();
+      for (const p of s.spots) { ctx.beginPath(); ctx.arc(s.x+p.x,s.y+p.y,p.r,0,Math.PI*2); ctx.fill(); } }
+    ctx.globalAlpha = 1;
+    for (const f of game.entities) {
+      if (f.dead) continue;
+      if (f.special || f.boss) { ctx.save(); ctx.shadowColor = juice[f.type]; ctx.shadowBlur = 28;
+        ctx.strokeStyle = juice[f.type]+'99'; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.arc(f.x,f.y,f.r*(1.13+Math.sin(now/150)*.05),0,Math.PI*2); ctx.stroke(); ctx.restore(); }
+      sprite(f);
+      if (f.special) { ctx.font = 'bold 14px system-ui'; ctx.fillStyle = juice[f.type]; ctx.textAlign = 'center';
+        ctx.shadowColor = '#0c0302'; ctx.shadowBlur = 7; ctx.fillText(effectNames[f.special],f.x,f.y+f.r+24); ctx.shadowBlur = 0; }
+    }
+    for (const f of halves) { ctx.globalAlpha = Math.min(1,f.life); sprite(f,f.part); }
+    for (const p of particles) { ctx.globalAlpha = clamp(p.life*2,0,1); ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.ellipse(p.x,p.y,p.r,p.r*.7,Math.atan2(p.vy,p.vx),0,Math.PI*2); ctx.fill(); }
+    for (const ring of rings) { ctx.globalAlpha = ring.life; ctx.strokeStyle = ring.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(ring.x,ring.y,ring.size*(1-ring.life)+10,0,Math.PI*2); ctx.stroke(); }
+    for (const l of labels) { ctx.globalAlpha = Math.min(1,l.life*3); ctx.font = `900 ${l.size}px system-ui`; ctx.textAlign = 'center';
+      ctx.lineJoin = 'round'; ctx.strokeStyle = '#301006'; ctx.lineWidth = 5; ctx.strokeText(l.text,l.x,l.y); ctx.fillStyle = l.color; ctx.fillText(l.text,l.x,l.y); }
+    ctx.globalAlpha = 1; ctx.restore();
+    while (trail.length && now-trail[0].t>160) trail.shift();
+    if (trail.length>1) { ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowColor = bladeColors[blade]; ctx.shadowBlur = 20;
+      for (let i=1;i<trail.length;i++) { ctx.globalAlpha = clamp(1-(now-trail[i].t)/160,0,1); ctx.strokeStyle = bladeColors[blade];
+        ctx.lineWidth = 2+7*i/trail.length; ctx.beginPath(); ctx.moveTo(trail[i-1].x,trail[i-1].y); ctx.lineTo(trail[i].x,trail[i].y); ctx.stroke(); }
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.beginPath();
+      trail.forEach((p,i)=>i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y)); ctx.stroke(); ctx.restore(); }
+    if (flash) { ctx.fillStyle = `rgba(255,190,105,${flash})`; ctx.fillRect(0,0,width,height); }
+    if (game.phase==='menu' && !reducedMotion) { ambient+=.008; ctx.fillStyle = '#ffcc7180';
+      for (let i=0;i<12;i++) { ctx.globalAlpha = .1+Math.sin(ambient+i)*.1; ctx.beginPath();
+        ctx.arc((i*109+50)%width,height-((ambient*20+i*75)%height),1.8,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha = 1; }
+  }
+  function point(event) { const rect = canvas.getBoundingClientRect(); return {x:event.clientX-rect.left,y:event.clientY-rect.top,t:performance.now()}; }
+  canvas.addEventListener('pointerdown',event => {
+    if (!['playing','finale'].includes(game.phase) || activePointer!==null) return;
+    event.preventDefault(); initAudio(); activePointer = event.pointerId; previous = point(event); trail.push(previous); canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointermove',event => {
+    if (activePointer!==event.pointerId || !['playing','finale'].includes(game.phase)) return;
+    event.preventDefault(); const samples = event.getCoalescedEvents?.();
+    for (const sample of samples?.length ? samples : [event]) { const next = point(sample);
+      if (previous) game.swipe(previous,next); trail.push(next); previous = next; }
+    if (trail.length>180) trail.splice(0,trail.length-180); handleEvents(); updateHud();
+  });
+  function release(event) { if (event && activePointer!==event.pointerId) return;
+    game.endStroke(); activePointer = previous = null; handleEvents(); updateHud(); }
+  for (const event of ['pointerup','pointercancel','lostpointercapture']) canvas.addEventListener(event,release);
+  for (const mode of ['classic','arcade','zen']) $(mode).onclick = () => start(mode);
+  $('again').onclick = () => game.phase==='paused' ? pause() : start(game.mode); $('home').onclick = home; $('pause').onclick = pause;
+  $('blade').value = blade; $('background').value = background; $('dojo').dataset.background = background;
+  $('blade').onchange = event => { blade = event.target.value; write('dojo-blade',blade); tone(880,.1); };
+  $('background').onchange = event => { background = event.target.value; $('dojo').dataset.background = background; write('dojo-background',background); };
+  function updateSound() { $('sound').textContent = sound ? '♫' : '♪̸'; $('sound').setAttribute('aria-label',sound ? '关闭声音' : '开启声音'); }
+  updateSound(); $('sound').onclick = () => { initAudio(); sound = !sound; write('dojo-sound',sound ? 'on' : 'off'); updateSound(); if (sound) tone(660,.1); };
+  $('help').onclick = () => $('guide').showModal(); $('closeGuide').onclick = () => $('guide').close();
+  $('guide').addEventListener('click',event => { if (event.target===$('guide')) $('guide').close(); });
+  addEventListener('keydown',event => {
+    if ($('guide').open) return;
+    const focusTag = document.activeElement.tagName;
+    if ((event.code==='Escape' || event.code==='Space') && !['SELECT','INPUT','TEXTAREA'].includes(focusTag) && !(event.code==='Space' && focusTag==='BUTTON')) {
+      if (['countdown','playing','finale','paused'].includes(game.phase)) { event.preventDefault(); pause(); }
+    }
+  });
+  document.addEventListener('visibilitychange',() => { if (document.hidden && ['countdown','playing','finale'].includes(game.phase)) pause(); });
+  function loadImage(image) { return new Promise((resolve,reject) => {
+    if (image.complete) return image.naturalWidth ? resolve() : reject(new Error('Image load failed'));
+    image.onload = resolve; image.onerror = () => reject(new Error('Image load failed')); }); }
+  for (const mode of ['classic','arcade','zen']) $(mode).disabled = true;
+  Promise.all([loadImage(atlas),loadImage(specials)]).then(() => {
+    loading = false; $('loadStatus').hidden = true; for (const mode of ['classic','arcade','zen']) $(mode).disabled = false;
+  }).catch(() => { $('loadStatus').textContent = '素材暂时加载失败，请刷新重试'; });
+  function frame(now) { const dt = Math.min((now-lastFrame)/1000 || 0,.05); lastFrame = now;
+    game.update(dt); handleEvents(); updateVisuals(dt); updateHud(); draw(now); requestAnimationFrame(frame); }
+  updateHud(); requestAnimationFrame(frame);
+  const model = document.modelContext;
+  if (model?.registerTool) {
+    const lifecycle = new AbortController();
+    const tools = [
+      {name:'read_game_state',description:'Read current phase, mode, score, timer and active effects.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>game.snapshot()},
+      {name:'start_fruit_game',description:'Start a fresh Classic, Arcade or Zen game. Resets the score.',inputSchema:{type:'object',properties:{mode:{type:'string',enum:['classic','arcade','zen']}},required:['mode'],additionalProperties:false},annotations:{readOnlyHint:false},execute:input=>{
+        if (!input || !Object.hasOwn(FruitEngine.MODES,input.mode)) throw new Error('Invalid mode'); if (loading) throw new Error('Assets still loading'); return start(input.mode); }},
+      {name:'toggle_game_pause',description:'Pause or resume the game, countdown or finale.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:pause},
+    ];
+    for (const tool of tools) { try { Promise.resolve(model.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{}); } catch {} }
+    addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
+  }
 })();

@@ -1,29 +1,59 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>水果道场 · 划出你的连击</title><meta name="description" content="滑动刀锋，切开水果，避开炸弹。在经典和限时模式中挑战你的最高分。">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%233d8236'/%3E%3Cpath d='M8 34h48a24 24 0 0 1-48 0' fill='%23ef4b45' stroke='%23c8ed9b' stroke-width='4'/%3E%3Cpath d='m23 42 2 4m11-4 2 4' stroke='%2325140d' stroke-width='3'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#28150e">
+  <title>水果道场 · Classic / Arcade / Zen</title>
+  <meta name="description" content="经典、街机、禅境三种划切玩法。叠加冰冻、双倍和狂热香蕉，触发 Blitz，在石榴连斩中挑战最高分。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%233d8236'/%3E%3Cpath d='M8 34h48a24 24 0 0 1-48 0' fill='%23ef4b45' stroke='%23c8ed9b' stroke-width='4'/%3E%3Cpath d='m23 42 2 4m11-4 2 4' stroke='%2325140d' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css?v=2">
+  <script defer src="engine.js?v=2"></script>
+  <script defer src="game.js?v=2"></script>
 </head>
 <body>
-<main id="dojo">
+<main id="dojo" data-background="wood">
   <canvas id="game" aria-label="水果划切游戏区域"></canvas>
+  <div class="effect-wash" aria-hidden="true"></div>
   <header class="hud">
-    <div class="scorebox"><span class="eyebrow">本局得分</span><strong id="score">0</strong><span class="best">最高 <b id="best">0</b></span></div>
-    <div class="hud-right"><div id="status" class="status">水果道场</div><button id="sound" class="icon-button" aria-label="关闭声音" title="声音">♫</button><button id="pause" class="icon-button" aria-label="暂停游戏" title="暂停" hidden>Ⅱ</button></div>
+    <div class="scorebox"><span class="eyebrow">本局得分</span><strong id="score">0</strong><span class="best">BEST <b id="best">0</b></span></div>
+    <div class="hud-right"><div id="status" class="status">选择你的修炼</div><button id="sound" class="icon-button" aria-label="关闭声音">♫</button><button id="pause" class="icon-button" aria-label="暂停游戏" hidden>Ⅱ</button></div>
   </header>
+  <div id="effects" class="effects" hidden>
+    <div id="effect-double" class="effect double" hidden><span>×2 双倍</span><b>8s</b></div>
+    <div id="effect-freeze" class="effect freeze" hidden><span>❄ 冰冻</span><b>8s</b></div>
+    <div id="effect-frenzy" class="effect frenzy" hidden><span>♨ 狂热</span><b>8s</b></div>
+  </div>
+  <div id="blitz" class="blitz" hidden><b>BLITZ</b><span>持续连击，保持火力</span></div>
+  <div id="bossHint" class="boss-hint" hidden></div>
   <div id="centerMessage" aria-live="polite"></div>
-  <section id="menu" class="menu">
-    <div class="seal">斩</div><p class="kicker">FRUIT DOJO</p><h1>水果<span>道场</span></h1>
-    <p class="intro">刀锋所至，果汁四溅。</p>
-    <div class="hero-fruit" aria-hidden="true"><i class="fruit apple"></i><i class="fruit melon"></i><i class="fruit orange"></i><span class="slash"></span></div>
-    <div class="modes"><button id="classic" class="mode classic"><span class="mode-title">经典模式</span><span class="mode-copy">三次漏切机会 · 避开炸弹</span><span class="mode-tag">开始修炼</span></button><button id="arcade" class="mode arcade"><span class="mode-title">限时模式</span><span class="mode-copy">60 秒冲分 · 炸弹扣 10 分</span><span class="mode-tag">挑战极限</span></button></div>
-    <p class="instruction"><span class="instruction-line"></span>按住鼠标划切 · 手机用手指滑动<span class="instruction-line"></span></p>
+
+  <section id="menu" class="menu" aria-label="选择游戏模式">
+    <div class="brand"><span class="seal">斩</span><p class="kicker">FRUIT DOJO</p><h1>水果<span>道场</span></h1><p class="intro">一刀入魂，果汁四溅。</p></div>
+    <div class="modes">
+      <button id="classic" class="mode classic"><span class="mode-number">01 / CLASSIC</span><i class="mode-fruit melon" aria-hidden="true"></i><span class="mode-title">经典</span><span class="mode-copy">三次漏切 · 一击避弹</span><span class="mode-best">最高 <b id="best-classic">0</b></span><span class="mode-tag">开始修炼</span></button>
+      <button id="arcade" class="mode arcade"><span class="mode-number">02 / ARCADE</span><span class="hot-tag">极限冲分</span><i class="mode-fruit banana" aria-hidden="true"></i><span class="mode-title">街机</span><span class="mode-copy">60 秒 · 三重香蕉力量</span><span class="mode-best">最高 <b id="best-arcade">0</b></span><span class="mode-tag">引爆连击</span></button>
+      <button id="zen" class="mode zen"><span class="mode-number">03 / ZEN</span><i class="mode-fruit orange" aria-hidden="true"></i><span class="mode-title">禅境</span><span class="mode-copy">90 秒 · 没有炸弹</span><span class="mode-best">最高 <b id="best-zen">0</b></span><span class="mode-tag">静心练刀</span></button>
+    </div>
+    <div class="loadout"><label>刀锋<select id="blade"><option value="frost">寒霜 · 冰蓝</option><option value="ember">赤焰 · 金橙</option><option value="violet">紫电 · 霓虹</option></select></label><label>道场<select id="background"><option value="wood">古木道场</option><option value="night">月夜道场</option></select></label><button id="help" class="help-button">玩法秘笈 <span>?</span></button></div>
+    <p id="loadStatus" role="status" class="load-status">正在准备水果…</p>
   </section>
-  <section id="overlay" class="overlay" hidden><div class="result"><p id="resultLabel" class="kicker">修炼结束</p><h2 id="resultTitle">再来一刀</h2><div id="resultScore" class="result-score">0</div><p id="resultDetail">最高分 0</p><div class="result-actions"><button id="again" class="primary">再来一局</button><button id="home" class="secondary">回到道场</button></div></div></section>
-  <footer><span>一刀切中 3 个以上水果，获得连击奖励</span><span id="footerMode">经典划切 · 原创画作</span></footer>
+
+  <section id="overlay" class="overlay" hidden aria-label="游戏结算与暂停">
+    <div class="result"><p id="resultLabel" class="kicker">修炼结束</p><h2 id="resultTitle">再来一刀</h2><div id="resultScore" class="result-score">0</div><p id="resultDetail">个人最佳 0</p>
+      <div id="resultStats" class="result-stats"><div><b id="cutStat">0</b><span>切中水果</span></div><div><b id="comboStat">0</b><span>最高连击</span></div><div><b id="criticalStat">0</b><span>暴击次数</span></div><div><b id="bossStat">0</b><span>石榴连斩</span></div></div>
+      <div id="awards" class="awards"></div><div class="result-actions"><button id="again" class="primary">再来一局</button><button id="home" class="secondary">回到道场</button></div>
+    </div>
+  </section>
+  <footer><span id="footerTip">按住鼠标划切 · 手机用手指滑动</span><span id="footerMode">经典模式</span></footer>
 </main>
-<script src="game.js"></script>
+
+<dialog id="guide" class="guide">
+  <div class="guide-head"><div><p class="kicker">THE ART OF SLICING</p><h2>玩法秘笈</h2></div><button id="closeGuide" class="icon-button" aria-label="关闭玩法秘笈">×</button></div>
+  <p class="guide-intro">按住鼠标或用手指滑动，一次划切至少 3 个水果即可获得连击奖励。空格 / Esc 暂停。</p>
+  <div class="guide-modes"><p><b>经典</b> 无时间限制。三次漏切或切中炸弹后结束。</p><p><b>街机</b> 60 秒冲分，炸弹扣 10 分并清除所有增益。最后出现石榴，快速往返划切！</p><p><b>禅境</b> 90 秒自由练刀，没有炸弹和随机暴击，专心练习连击。</p></div>
+  <div class="power-guide"><div><i class="special-icon double" aria-hidden="true"></i><b>双倍得分</b><span>水果、暴击和连击奖励翻倍</span></div><div><i class="special-icon freeze" aria-hidden="true"></i><b>冰冻时间</b><span>水果和倒计时一起慢下来</span></div><div><i class="special-icon frenzy" aria-hidden="true"></i><b>水果狂热</b><span>密集水果雨，暂时没有炸弹</span></div></div>
+  <p class="guide-foot">香蕉持续 8 秒，可叠加。街机连续做出连击，依次触发 BLITZ、SUPER BLITZ、MEGA BLITZ；6 秒没有连击则重置。暴击额外 +10 分。</p>
+</dialog>
 </body>
 </html>
