@@ -116,4 +116,4 @@ git push origin main
 
 ## 设计参考与素材
 
-玩法参考 Halfbrick 的[原作入门指南](https://www.halfbrick.com/blog/the-ultimate-beginners-guide-to-fruit-ninja)和[街机模式介绍](https://www.halfbrick.com/blog/fruit-ninja-arcade-mode-announced)。图片为本项目生成的原创素材；未使用官方美术、商标图形或音频。中文衬线字体由 Google Fonts 提供，无法访问时回退到系统字体。本项目与 Halfbrick 无关联。
+玩法参考 Halfbrick 的[原作入门指南](https://www.halfbrick.com/blog/the-ultimate-beginners-guide-to-fruit-ninja)和[街机模式介绍](https://www.halfbrick.com/blog/fruit-ninja-arcade-mode-announced)。图片为本项目生成的原创素材；未使用官方美术、商标图形或音频。[特殊水果生成说明](docs/art-direction.md)记录了 ImageGen 提示词及图集规格。中文衬线字体由 Google Fonts 提供，无法访问时回退到系统字体。本项目与 Halfbrick 无关联。
