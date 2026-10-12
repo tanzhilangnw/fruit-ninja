@@ -4,12 +4,12 @@
   const $ = id => document.getElementById(id);
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const game = new FruitEngine({ width: innerWidth, height: innerHeight });
-  const atlas = new Image(), specials = new Image();
-  atlas.src = 'fruits.png'; specials.src = 'specials.png';
+  const atlas = new Image(), specials = new Image(), orchard = new Image();
+  atlas.src = 'fruits.png'; specials.src = 'specials.png'; orchard.src = 'orchard.png';
   const crops = [[0,0,512,460],[512,0,512,460],[1024,0,512,460],[0,460,512,564],[512,460,512,564],[1024,460,512,564]];
-  const juice = ['#f34853','#ffb52e','#f85735','#ffd94c','#ef3258','#f4a743','#78b9ff','#93eaff','#ff8143','#e82b57'];
+  const juice = ['#f34853','#ffb52e','#f85735','#ffd94c','#ef3258','#f4a743','#78b9ff','#93eaff','#ff8143','#e82b57','#9dde56','#fff16a','#ffb1a0','#bada63','#ff62b4','#ad7cff'];
   const effectNames = { double: '双倍得分', freeze: '冰冻时间', frenzy: '水果狂热' };
-  const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff' };
+  const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff', rainbow: '#8affdb' };
   const halves = [], particles = [], stains = [], labels = [], rings = [], trail = [];
   let width = innerWidth, height = innerHeight, lastFrame = 0, activePointer = null, previous = null;
   let shake = 0, flash = 0, messageLife = 0, audio = null, loading = true, hudKey = '', ambient = 0;
@@ -18,10 +18,10 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   function read(key,fallback) { try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; } }
   function write(key,value) { try { localStorage.setItem(key,String(value)); } catch {} }
-  function best(mode = game.mode) { return Number(read('dojo-best-'+mode,0)) || 0; }
+  function best(mode = game.mode) { return Number(read('dojo-best-v3-'+mode,0)) || 0; }
   let blade = read('dojo-blade','frost'), background = read('dojo-background','wood'), sound = read('dojo-sound','on') !== 'off';
   if (!Object.hasOwn(bladeColors,blade)) blade = 'frost';
-  if (!['wood','night'].includes(background)) background = 'wood';
+  if (!['wood','night','storm'].includes(background)) background = 'wood';
 
   function resize() {
     width = canvas.clientWidth; height = canvas.clientHeight;
@@ -76,7 +76,7 @@
   function pause() { game.togglePause(); handleEvents(); updateHud(); return game.snapshot(); }
   function showResult(event) {
     activePointer = previous = null; trail.length = 0;
-    const old = best(); write('dojo-best-'+game.mode,Math.max(old,event.score));
+    const old = best(); write('dojo-best-v3-'+game.mode,Math.max(old,event.score));
     $('overlay').hidden = false; $('pause').hidden = true;
     $('resultLabel').textContent = FruitEngine.MODES[game.mode].name+'模式 · 修炼完成';
     $('resultTitle').textContent = event.score > old ? '新的最高纪录' : event.reason;
@@ -117,7 +117,7 @@
         if (event.critical) { label('暴击！ +'+event.points,event.fruit.x,event.fruit.y-40,'#ffed85',32,1.1);
           rings.push({x:event.fruit.x,y:event.fruit.y,life:.5,color:'#ffde56',size:160}); shake = reducedMotion ? 0 : .13;
         } else if (event.points) label('+'+event.points,event.fruit.x,event.fruit.y-15); break;
-      case 'combo': label(event.count+' 连击  +'+event.bonus,event.x,Math.max(150,event.y-65),
+      case 'combo': label((event.variety ? '缤纷 ' : '')+event.count+' 连击  +'+event.bonus,event.x,Math.max(150,event.y-65),
         event.count>=6 ? '#ff9c6c' : '#ffe088',clamp(width*.035,27,43),1.25); tone(880,.15,.1); tone(1175,.24,.06); break;
       case 'power': announce(effectNames[event.effect]+'！',1.15);
         rings.push({x:event.fruit.x,y:event.fruit.y,life:.8,color:juice[event.fruit.type],size:width});
@@ -165,15 +165,16 @@
     if (game.phase==='finale') $('bossHint').textContent = '快速反复划切 · '+Math.ceil(game.bossRemaining)+'s · '+game.stats.bossHits+' 斩';
   }
   function sprite(fruit,part = 0) {
-    const special = fruit.type>=6, image = special ? specials : atlas;
+    const extra = fruit.type >= 10, special = fruit.type>=6 && !extra, image = extra ? orchard : special ? specials : atlas;
     if (!image.complete || !image.naturalWidth) return;
     const cell = image.naturalWidth/2;
-    const crop = special ? [(fruit.type-6)%2*cell,Math.floor((fruit.type-6)/2)*image.naturalHeight/2,cell,image.naturalHeight/2] : crops[fruit.type];
+    const crop = extra ? [(fruit.type-10)%3*image.naturalWidth/3,Math.floor((fruit.type-10)/3)*image.naturalHeight/2,image.naturalWidth/3,image.naturalHeight/2]
+      : special ? [(fruit.type-6)%2*cell,Math.floor((fruit.type-6)/2)*image.naturalHeight/2,cell,image.naturalHeight/2] : crops[fruit.type];
     const w = fruit.r*2.25, h = w*crop[3]/crop[2];
     ctx.save(); ctx.translate(fruit.x,fruit.y); ctx.rotate(fruit.angle);
     if (part) { ctx.beginPath(); ctx.rect(part<0 ? -w/2 : 0,-h/2,w/2,h); ctx.clip(); }
     ctx.drawImage(image,...crop,-w/2,-h/2,w,h);
-    if (part && fruit.type<5) { ctx.fillStyle = ['#ff6c7c','#ffd88a','#fff0b8','#ffe57c','#ff7796'][fruit.type];
+    if (part && !special && !fruit.bomb) { ctx.fillStyle = juice[fruit.type];
       ctx.fillRect(part<0 ? -3 : 0,-fruit.r*.56,3,fruit.r*1.12); }
     ctx.restore();
   }
@@ -201,6 +202,9 @@
         ctx.strokeStyle = juice[f.type]+'99'; ctx.lineWidth = 2; ctx.beginPath();
         ctx.arc(f.x,f.y,f.r*(1.13+Math.sin(now/150)*.05),0,Math.PI*2); ctx.stroke(); ctx.restore(); }
       sprite(f);
+      if (!f.bomb && !f.special && !f.boss) { const value = FruitEngine.FRUITS.find(item => item.type === f.type)?.points;
+        ctx.font = '800 12px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff2d6'; ctx.strokeStyle = '#170b08'; ctx.lineWidth = 3;
+        ctx.strokeText(value+' 分',f.x,f.y+f.r+17); ctx.fillText(value+' 分',f.x,f.y+f.r+17); }
       if (f.special) { ctx.font = 'bold 14px system-ui'; ctx.fillStyle = juice[f.type]; ctx.textAlign = 'center';
         ctx.shadowColor = '#0c0302'; ctx.shadowBlur = 7; ctx.fillText(effectNames[f.special],f.x,f.y+f.r+24); ctx.shadowBlur = 0; }
     }
@@ -212,14 +216,22 @@
     for (const l of labels) { ctx.globalAlpha = Math.min(1,l.life*3); ctx.font = `900 ${l.size}px system-ui`; ctx.textAlign = 'center';
       ctx.lineJoin = 'round'; ctx.strokeStyle = '#301006'; ctx.lineWidth = 5; ctx.strokeText(l.text,l.x,l.y); ctx.fillStyle = l.color; ctx.fillText(l.text,l.x,l.y); }
     ctx.globalAlpha = 1; ctx.restore();
-    while (trail.length && now-trail[0].t>160) trail.shift();
+    while (trail.length && now-trail[0].t>240) trail.shift();
     if (trail.length>1) { ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowColor = bladeColors[blade]; ctx.shadowBlur = 20;
-      for (let i=1;i<trail.length;i++) { ctx.globalAlpha = clamp(1-(now-trail[i].t)/160,0,1); ctx.strokeStyle = bladeColors[blade];
-        ctx.lineWidth = 2+7*i/trail.length; ctx.beginPath(); ctx.moveTo(trail[i-1].x,trail[i-1].y); ctx.lineTo(trail[i].x,trail[i].y); ctx.stroke(); }
+      for (let i=1;i<trail.length;i++) { const p=trail[i], a=trail[i-1], age=now-p.t;
+        ctx.globalAlpha = clamp(1-age/240,0,1); ctx.strokeStyle = blade==='rainbow' ? `hsl(${(now/8+i*18)%360} 100% 72%)` : bladeColors[blade];
+        ctx.lineWidth = 3+12*i/trail.length; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+        if (!reducedMotion && i%3===0) { ctx.lineWidth=1.5; const offset=Math.sin(i*19)*16;
+          ctx.beginPath();
+          if (blade==='violet') { ctx.moveTo(a.x,a.y); ctx.lineTo((a.x+p.x)/2+offset,(a.y+p.y)/2-offset); ctx.lineTo(p.x+offset,p.y+offset); }
+          else if (blade==='frost') { ctx.moveTo(p.x-6,p.y-6); ctx.lineTo(p.x+6,p.y+6); ctx.moveTo(p.x-6,p.y+6);ctx.lineTo(p.x+6,p.y-6); }
+          else { ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+offset,p.y-12-age*.08); }
+          ctx.stroke(); }
+      }
       ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.beginPath();
       trail.forEach((p,i)=>i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y)); ctx.stroke(); ctx.restore(); }
     if (flash) { ctx.fillStyle = `rgba(255,190,105,${flash})`; ctx.fillRect(0,0,width,height); }
-    if (game.phase==='menu' && !reducedMotion) { ambient+=.008; ctx.fillStyle = '#ffcc7180';
+    if ((game.phase==='menu' || background!=='wood') && !reducedMotion) { ambient+=.008; ctx.fillStyle = background==='storm' ? '#c78fff80' : background==='night' ? '#8af9dd80' : '#ffcc7180';
       for (let i=0;i<12;i++) { ctx.globalAlpha = .1+Math.sin(ambient+i)*.1; ctx.beginPath();
         ctx.arc((i*109+50)%width,height-((ambient*20+i*75)%height),1.8,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha = 1; }
   }
@@ -259,7 +271,7 @@
     if (image.complete) return image.naturalWidth ? resolve() : reject(new Error('Image load failed'));
     image.onload = resolve; image.onerror = () => reject(new Error('Image load failed')); }); }
   for (const mode of ['classic','arcade','zen']) $(mode).disabled = true;
-  Promise.all([loadImage(atlas),loadImage(specials)]).then(() => {
+  Promise.all([loadImage(atlas),loadImage(specials),loadImage(orchard)]).then(() => {
     loading = false; $('loadStatus').hidden = true; for (const mode of ['classic','arcade','zen']) $(mode).disabled = false;
   }).catch(() => { $('loadStatus').textContent = '素材暂时加载失败，请刷新重试'; });
   function frame(now) { const dt = Math.min((now-lastFrame)/1000 || 0,.05); lastFrame = now;

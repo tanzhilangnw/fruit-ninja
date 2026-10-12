@@ -28,9 +28,9 @@ test('a swipe through three fruit doubles their base score and never cuts them t
   const game = running('classic');
   for (let i = 0; i < 3; i++) fruit(game, { x: 300 + i * 90 });
   game.swipe({ x: 220, y: 300 }, { x: 580, y: 300 }); game.endStroke();
-  assert.equal(game.score, 6); assert.equal(game.stats.maxCombo, 3);
+  assert.equal(game.score, 18); assert.equal(game.stats.maxCombo, 3);
   game.swipe({ x: 220, y: 300 }, { x: 580, y: 300 });
-  assert.equal(game.score, 6);
+  assert.equal(game.score, 18);
 });
 test('swipes outside the collision radius do not score', () => {
   const game = running(); fruit(game);
@@ -41,9 +41,9 @@ test('critical adds ten extra points; double banana multiplies critical and comb
   const game = running('arcade', () => 0);
   game.cut(fruit(game, { type: 6, special: 'double' }));
   game.cut(fruit(game));
-  assert.equal(game.score, 22); assert.equal(game.stats.criticals, 1);
+  assert.equal(game.score, 26); assert.equal(game.stats.criticals, 1);
   game.cut(fruit(game)); game.cut(fruit(game)); game.endStroke();
-  assert.equal(game.score, 72);
+  assert.equal(game.score, 96);
 });
 test('banana effects stack, refresh and expire independently', () => {
   const game = running();
@@ -71,8 +71,8 @@ test('frenzy removes bombs and spawns seven-fruit waves without new bombs', () =
 test('arcade bombs subtract ten, reset Blitz and effects, and never produce a negative score', () => {
   const game = running(); combo(game); combo(game); assert.equal(game.blitz, 1);
   game.activate('double', fruit(game)); game.cut(fruit(game, { type: 5, bomb: true }));
-  assert.equal(game.score, 7); assert.equal(game.blitz, 0); assert.equal(game.multiplier, 1);
-  game.cut(fruit(game, { type: 5, bomb: true })); assert.equal(game.score, 0); assert.equal(game.phase, 'playing');
+  assert.equal(game.score, 31); assert.equal(game.blitz, 0); assert.equal(game.multiplier, 1);
+  game.score = 4; game.cut(fruit(game, { type: 5, bomb: true })); assert.equal(game.score, 0); assert.equal(game.phase, 'playing');
 });
 test('continuous combos reach MEGA BLITZ; six seconds without combo resets it', () => {
   const game = running(); for (let i = 0; i < 6; i++) combo(game);
@@ -91,7 +91,7 @@ test('three missed fruits end Classic; missed bananas and bombs do not count', (
 test('Zen has no bombs or critical hits and ends at 90 seconds', () => {
   const game = running('zen', () => 0); game.elapsed = 30; game.spawnWave();
   assert.ok(game.entities.every(f => !f.bomb)); game.cut(fruit(game));
-  assert.equal(game.score, 1); assert.equal(game.stats.criticals, 0);
+  assert.equal(game.score, 3); assert.equal(game.stats.criticals, 0);
   game.update(90); assert.equal(game.phase, 'over');
 });
 test('arcade finale counts distinct slashes, rejects duplicate samples and grants awards once', () => {
@@ -108,4 +108,42 @@ test('countdown and finale both support pause/resume', () => {
   assert.equal(game.countdown, 3); game.togglePause(); assert.equal(game.phase, 'countdown');
   game.update(3); game.startFinale(); game.togglePause(); game.update(10);
   assert.equal(game.bossRemaining, 4.5); game.togglePause(); assert.equal(game.phase, 'finale');
+});
+
+test('all eleven fruits carry distinct bounties and mixed combos reward variety', () => {
+  const game = running('zen');
+  assert.equal(FruitEngine.FRUITS.length, 11);
+  for (const item of FruitEngine.FRUITS) {
+    const before = game.score; game.cut(fruit(game, { type: item.type }));
+    assert.equal(game.score - before, item.points); game.endStroke();
+  }
+  const mixed = running('zen');
+  for (const type of [2, 10, 14]) mixed.cut(fruit(mixed, { type }));
+  mixed.endStroke(); assert.equal(mixed.score, 33);
+  assert.equal(mixed.events.find(e => e.type === 'combo').variety, 9);
+  const doubled = running('zen'); doubled.effects.double = 8;
+  for (const type of [2, 10, 14]) doubled.cut(fruit(doubled, { type }));
+  doubled.endStroke(); assert.equal(doubled.score, 66);
+});
+
+test('fruit apex reaches the upper screen on portrait and landscape displays', () => {
+  for (const [width, height] of [[390,844],[782,1091],[1280,720],[900,440]]) {
+    const game = new FruitEngine({width,height,random:()=>0.5});
+    game.start('classic'); game.update(3); game.waveIn = Infinity;
+    const f = game.spawn({x:width/2,vx:0}); let top = f.y;
+    for (let i=0;i<240;i++) { game.update(1/120); top = Math.min(top,f.y); }
+    assert.ok(top < height * 0.42, `apex ${top} on ${width}x${height}`);
+    assert.ok(top > 100, 'fruit must clear the top HUD');
+  }
+});
+
+test('Classic starts gently then gradually increases waves and bomb frequency', () => {
+  const game = running('classic',()=>0);
+  game.elapsed = 10; game.spawnWave();
+  assert.equal(game.entities.length,2); assert.ok(game.waveIn >= 2);
+  assert.ok(game.entities.every(f=>!f.bomb));
+  game.entities=[]; game.elapsed=120; game.spawnWave();
+  assert.equal(game.entities.filter(f=>!f.bomb).length,5);
+  assert.equal(game.entities.filter(f=>f.bomb).length,1);
+  assert.ok(game.waveIn < 2);
 });

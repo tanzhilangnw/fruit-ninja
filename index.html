@@ -35,7 +35,7 @@
       <button id="arcade" class="mode arcade"><span class="mode-number">02 / ARCADE</span><span class="hot-tag">极限冲分</span><i class="mode-fruit banana" aria-hidden="true"></i><span class="mode-title">街机</span><span class="mode-copy">60 秒 · 三重香蕉力量</span><span class="mode-best">最高 <b id="best-arcade">0</b></span><span class="mode-tag">引爆连击</span></button>
       <button id="zen" class="mode zen"><span class="mode-number">03 / ZEN</span><i class="mode-fruit orange" aria-hidden="true"></i><span class="mode-title">禅境</span><span class="mode-copy">90 秒 · 没有炸弹</span><span class="mode-best">最高 <b id="best-zen">0</b></span><span class="mode-tag">静心练刀</span></button>
     </div>
-    <div class="loadout"><label>刀锋<select id="blade"><option value="frost">寒霜 · 冰蓝</option><option value="ember">赤焰 · 金橙</option><option value="violet">紫电 · 霓虹</option></select></label><label>道场<select id="background"><option value="wood">古木道场</option><option value="night">月夜道场</option></select></label><button id="help" class="help-button">玩法秘笈 <span>?</span></button></div>
+    <div class="loadout"><label>刀锋<select id="blade"><option value="frost">寒霜 · 冰晶碎芒</option><option value="ember">赤焰 · 烈火流星</option><option value="violet">紫电 · 闪电裂隙</option><option value="rainbow">虹光 · 七彩流刃</option></select></label><label>道场<select id="background"><option value="wood">古木道场 · 默认</option><option value="night">月下竹境</option><option value="storm">雷霆天宫</option></select></label><button id="help" class="help-button">玩法秘笈 <span>?</span></button></div>
     <p id="loadStatus" role="status" class="load-status">正在准备水果…</p>
   </section>
 
@@ -53,7 +53,8 @@
   <p class="guide-intro">按住鼠标或用手指滑动，一次划切至少 3 个水果即可获得连击奖励。空格 / Esc 暂停。</p>
   <div class="guide-modes"><p><b>经典</b> 无时间限制。三次漏切或切中炸弹后结束。</p><p><b>街机</b> 60 秒冲分，炸弹扣 10 分并清除所有增益。最后出现石榴，快速往返划切！</p><p><b>禅境</b> 90 秒自由练刀，没有炸弹和随机暴击，专心练习连击。</p></div>
   <div class="power-guide"><div><i class="special-icon double" aria-hidden="true"></i><b>双倍得分</b><span>水果、暴击和连击奖励翻倍</span></div><div><i class="special-icon freeze" aria-hidden="true"></i><b>冰冻时间</b><span>水果和倒计时一起慢下来</span></div><div><i class="special-icon frenzy" aria-hidden="true"></i><b>水果狂热</b><span>密集水果雨，暂时没有炸弹</span></div></div>
-  <p class="guide-foot">香蕉持续 8 秒，可叠加。街机连续做出连击，依次触发 BLITZ、SUPER BLITZ、MEGA BLITZ；6 秒没有连击则重置。暴击额外 +10 分。</p>
+  <div class="fruit-guide"><b>果实赏金 · 11 种水果</b><p>苹果 / 橙子 / 柠檬 2 分 · 西瓜 / 草莓 / 梨 3 分<br>猕猴桃 / 蜜桃 4 分 · 菠萝 / 葡萄 5 分 · 火龙果 6 分</p><p>一刀切中 3 个以上水果，额外获得这刀的基础分；同刀包含至少 3 种水果，再奖励每种 3 分，触发「缤纷连击」。双倍香蕉也会加倍这些奖励。</p></div>
+  <p class="guide-foot">香蕉持续 8 秒，可叠加。街机连续做出连击，依次触发 BLITZ、SUPER BLITZ、MEGA BLITZ；6 秒没有连击则重置。暴击额外 +10 分。经典前 15 秒没有炸弹，随后逐渐加速。新计分独立记录最高分，旧版纪录仍保存在浏览器中。</p>
 </dialog>
 </body>
 </html>

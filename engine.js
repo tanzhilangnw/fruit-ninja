@@ -2,6 +2,15 @@
 
 /** Deterministic game rules. Rendering, audio and browser storage live in game.js. */
 class FruitEngine {
+  static FRUITS = [
+    { type: 0, name: '西瓜', points: 3 }, { type: 1, name: '橙子', points: 2 },
+    { type: 2, name: '苹果', points: 2 }, { type: 3, name: '菠萝', points: 5 },
+    { type: 4, name: '草莓', points: 3 }, { type: 10, name: '猕猴桃', points: 4 },
+    { type: 11, name: '柠檬', points: 2 }, { type: 12, name: '蜜桃', points: 4 },
+    { type: 13, name: '梨', points: 3 }, { type: 14, name: '火龙果', points: 6 },
+    { type: 15, name: '葡萄', points: 5 },
+  ];
+  get gravity() { return this.height * (this.mode === 'classic' ? 0.64 : 0.82); }
   static MODES = {
     classic: { name: '经典', duration: Infinity, bombs: true },
     arcade: { name: '街机', duration: 60, bombs: true },
@@ -47,7 +56,7 @@ class FruitEngine {
     this.specialIn = 3.5;
     this.specialIndex = Math.floor(this.random() * 3);
     this.blitz = this.comboChain = this.blitzRemaining = 0;
-    this.stroke = { count: 0, age: 0, x: 0, y: 0, multiplier: 1 };
+    this.stroke = this.emptyStroke();
     this.effects = { double: 0, freeze: 0, frenzy: 0 };
     this.stats = this.emptyStats();
     this.awards = [];
@@ -89,13 +98,14 @@ class FruitEngine {
   spawn({ type, x, y, vx, vy, radius, special, bomb = false, boss = false } = {}) {
     const r = radius || Math.max(28, Math.min(this.width * 0.047, 53));
     const px = x ?? this.range(r, this.width - r);
-    const gravity = this.height * 0.9;
-    const apex = Math.max(180, Math.min(this.height * 0.64, 570));
+    const launchY = y ?? this.height + r * 1.5;
+    const targetY = Math.max(r + 110, this.height * this.range(0.19, 0.36));
+    const ascent = Math.max(r * 3, launchY - targetY);
     const fruit = {
-      id: this.nextId++, type: type ?? Math.floor(this.random() * 5),
-      x: px, y: y ?? this.height + r * 1.5, r,
+      id: this.nextId++, type: type ?? FruitEngine.FRUITS[Math.floor(this.random() * FruitEngine.FRUITS.length)].type,
+      x: px, y: launchY, r,
       vx: vx ?? (this.width / 2 - px) * 0.17 + this.range(-50, 50),
-      vy: vy ?? -Math.sqrt(2 * gravity * apex) + this.range(-35, 20),
+      vy: vy ?? -Math.sqrt(2 * this.gravity * ascent),
       angle: this.range(-0.6, 0.6), spin: this.range(-1.5, 1.5),
       special, bomb, boss, dead: false, entered: false, cooldown: 0,
     };
@@ -105,17 +115,22 @@ class FruitEngine {
 
   spawnWave() {
     const frenzy = this.effects.frenzy > 0;
-    const count = frenzy ? 7 : Math.min(6, 3 + Math.floor(this.elapsed / 25) + Math.floor(this.random() * 2));
+    const classic = this.mode === 'classic';
+    const count = frenzy ? 7 : classic ? Math.min(5, 2 + Math.floor(this.elapsed / 40) + Math.floor(this.random() * 2))
+      : Math.min(6, 3 + Math.floor(this.elapsed / 25) + Math.floor(this.random() * 2));
     const r = Math.max(28, Math.min(this.width * 0.047, 53));
     const center = this.range(this.width * 0.28, this.width * 0.72);
     for (let i = 0; i < count; i++) {
       const x = Math.max(r, Math.min(this.width - r, center + (i - (count - 1) / 2) * r * 1.3));
       this.spawn({ x, radius: r * this.range(0.86, 1.1) });
     }
-    if (FruitEngine.MODES[this.mode].bombs && !frenzy && this.elapsed > 3 && this.random() < 0.34) {
-      this.spawn({ type: 5, bomb: true, x: this.range(this.width * 0.2, this.width * 0.8), radius: r });
+    const bombChance = classic ? Math.min(0.26, 0.12 + this.elapsed / 900) : 0.34;
+    if (FruitEngine.MODES[this.mode].bombs && !frenzy && this.elapsed > (classic ? 15 : 3) && this.random() < bombChance) {
+      this.spawn({ type: 5, bomb: true, x: center < this.width / 2 ? this.width - r * 1.5 : r * 1.5,
+        vx: 0, radius: r * 0.86 });
     }
-    this.waveIn = frenzy ? 0.4 : this.range(1.2, 1.65) / (1 + this.blitz * 0.09);
+    this.waveIn = frenzy ? 0.4 : classic ? this.range(2.1, 2.6) / (1 + Math.min(this.elapsed / 300, 0.35))
+      : this.range(1.2, 1.65) / (1 + this.blitz * 0.09);
   }
 
   spawnBanana() {
@@ -149,7 +164,7 @@ class FruitEngine {
     fruit.dead = true;
     if (fruit.bomb) {
       this.stats.bombs++;
-      this.stroke.count = 0;
+      this.stroke = this.emptyStroke();
       this.comboChain = this.blitz = this.blitzRemaining = 0;
       this.effects = { double: 0, freeze: 0, frenzy: 0 };
       this.entities.forEach(f => { f.dead = true; });
@@ -167,11 +182,14 @@ class FruitEngine {
       return;
     }
     const critical = this.mode !== 'zen' && this.random() < 0.08;
-    const points = (critical ? 11 : 1) * this.multiplier;
+    const base = FruitEngine.FRUITS.find(item => item.type === fruit.type)?.points ?? 1;
+    const points = (base + (critical ? 10 : 0)) * this.multiplier;
     this.score += points;
     this.stats.cut++;
     if (critical) this.stats.criticals++;
     this.stroke.count++;
+    this.stroke.base += base * this.multiplier;
+    this.stroke.types.add(fruit.type);
     this.stroke.age = 0;
     this.stroke.x = fruit.x;
     this.stroke.y = fruit.y;
@@ -179,6 +197,8 @@ class FruitEngine {
     this.stats.maxCombo = Math.max(this.stats.maxCombo, this.stroke.count);
     this.emit('slice', { fruit: { ...fruit }, points, critical });
   }
+
+  emptyStroke() { return { count: 0, age: 0, x: 0, y: 0, multiplier: 1, base: 0, types: new Set() }; }
 
   endStroke() {
     if (!this.stroke) return;
@@ -194,12 +214,13 @@ class FruitEngine {
         blitzBonus = this.blitz * 5;
         if (this.blitz > oldLevel) this.emit('blitz', { level: this.blitz });
       }
-      const bonus = (count + blitzBonus) * multiplier;
+      const variety = this.stroke.types.size >= 3 ? this.stroke.types.size * 3 * multiplier : 0;
+      const bonus = this.stroke.base + blitzBonus * multiplier + variety;
       this.score += bonus;
       this.stats.bonus += bonus;
-      this.emit('combo', { count, bonus, x, y, blitz: this.blitz });
+      this.emit('combo', { count, bonus, variety, x, y, blitz: this.blitz });
     }
-    this.stroke = { count: 0, age: 0, x: 0, y: 0, multiplier: 1 };
+    this.stroke = this.emptyStroke();
   }
 
   static segmentDistance(x, y, a, b) {
@@ -300,7 +321,7 @@ class FruitEngine {
       this.specialIn -= dt;
       if (this.specialIn <= 0) this.spawnBanana();
     }
-    const gravity = this.height * 0.9;
+    const gravity = this.gravity;
     for (const f of this.entities) {
       if (f.dead) continue;
       f.x += f.vx * worldDt;
