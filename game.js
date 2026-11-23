@@ -9,7 +9,7 @@
   const crops = [[0,0,512,460],[512,0,512,460],[1024,0,512,460],[0,460,512,564],[512,460,512,564],[1024,460,512,564]];
   const juice = ['#f34853','#ffb52e','#f85735','#ffd94c','#ef3258','#f4a743','#78b9ff','#93eaff','#ff8143','#e82b57','#9dde56','#fff16a','#ffb1a0','#bada63','#ff62b4','#ad7cff'];
   const effectNames = { double: '双倍得分', freeze: '冰冻时间', frenzy: '水果狂热' };
-  const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff', rainbow: '#8affdb' };
+  const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff', rainbow: '#8affdb', sakura: '#ffa8d2', galaxy: '#99aaff', jade: '#83ffd0', ink: '#d7e4ee', solar: '#ffe17a', ocean: '#42d9ff' };
   const halves = [], particles = [], stains = [], labels = [], rings = [], trail = [];
   let width = innerWidth, height = innerHeight, lastFrame = 0, activePointer = null, previous = null;
   let shake = 0, flash = 0, messageLife = 0, audio = null, loading = true, hudKey = '', ambient = 0, hudAt = 0;
@@ -22,7 +22,7 @@
   function best(mode = game.mode) { return Number(read('dojo-best-v3-'+mode,0)) || 0; }
   let blade = read('dojo-blade','frost'), background = read('dojo-background','wood'), sound = read('dojo-sound','on') !== 'off';
   if (!Object.hasOwn(bladeColors,blade)) blade = 'frost';
-  if (!['wood','night','storm'].includes(background)) background = 'wood';
+  if (!['wood','night','storm','sakura','ocean','lava'].includes(background)) background = 'wood';
 
   function resize() {
     width = canvas.clientWidth; height = canvas.clientHeight;
@@ -220,11 +220,15 @@
     while (trail.length && now-trail[0].t>240) trail.shift();
     if (trail.length>1) { ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowColor = bladeColors[blade]; ctx.shadowBlur = mobile ? 0 : 20;
       for (let i=1;i<trail.length;i++) { const p=trail[i], a=trail[i-1], age=now-p.t;
-        ctx.globalAlpha = clamp(1-age/240,0,1); ctx.strokeStyle = blade==='rainbow' ? `hsl(${(now/8+i*18)%360} 100% 72%)` : bladeColors[blade];
+        ctx.globalAlpha = clamp(1-age/240,0,1); ctx.strokeStyle = ['rainbow','galaxy'].includes(blade) ? `hsl(${(now/8+i*18)%360} 100% 72%)` : bladeColors[blade];
         ctx.lineWidth = 3+12*i/trail.length; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(p.x,p.y); ctx.stroke();
         if (!reducedMotion && i%3===0) { ctx.lineWidth=1.5; const offset=Math.sin(i*19)*16;
           ctx.beginPath();
           if (blade==='violet') { ctx.moveTo(a.x,a.y); ctx.lineTo((a.x+p.x)/2+offset,(a.y+p.y)/2-offset); ctx.lineTo(p.x+offset,p.y+offset); }
+          else if (blade==='sakura') { ctx.ellipse(p.x+offset,p.y-8,4,7,i,0,Math.PI*2); }
+          else if (blade==='galaxy' || blade==='solar') { ctx.moveTo(p.x-9,p.y);ctx.lineTo(p.x+9,p.y);ctx.moveTo(p.x,p.y-9);ctx.lineTo(p.x,p.y+9); }
+          else if (blade==='ocean' || blade==='jade') {ctx.arc(p.x+offset,p.y,5+i%5,0,Math.PI*2);}
+          else if (blade==='ink') {ctx.lineWidth=5;ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+offset,p.y+offset*.5);}
           else if (blade==='frost') { ctx.moveTo(p.x-6,p.y-6); ctx.lineTo(p.x+6,p.y+6); ctx.moveTo(p.x-6,p.y+6);ctx.lineTo(p.x+6,p.y-6); }
           else { ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+offset,p.y-12-age*.08); }
           ctx.stroke(); }
@@ -256,12 +260,37 @@
   $('blade').value = blade; $('background').value = background; $('dojo').dataset.background = background;
   $('blade').onchange = event => { blade = event.target.value; write('dojo-blade',blade); tone(880,.1); };
   $('background').onchange = event => { background = event.target.value; $('dojo').dataset.background = background; write('dojo-background',background); };
+  const bladeNames = {frost:'寒霜',ember:'赤焰',violet:'紫电',rainbow:'虹光',sakura:'落樱',galaxy:'星河',jade:'翡翠',ink:'水墨',solar:'日冕',ocean:'潮汐'};
+  const dojoNames = {wood:'古木道场',night:'月下竹境',storm:'雷霆天宫',sakura:'樱月庭院',ocean:'深海神殿',lava:'熔火锻炉'};
+  for (const [id,names] of [['blade',bladeNames],['background',dojoNames]]) {
+    for (const [key,name] of Object.entries(names)) if (!Array.from($(id).options).some(o=>o.value===key)) $(id).add(new Option(name,key));
+  }
+  $('blade').value=blade; $('background').value=background;
+  function renderWardrobe() {
+    for (const [id,names] of [['blade',bladeNames],['background',dojoNames]]) {
+      const list=$(id+'Cards'); list.replaceChildren();
+      for (const [key,name] of Object.entries(names)) {
+        const button=document.createElement('button');button.className='cosmetic-card '+(id==='blade'?'blade-card':'dojo-card');
+        button.type='button';button.setAttribute('aria-pressed',String((id==='blade'?blade:background)===key));
+        if(id==='blade') {button.style.setProperty('--blade-color',bladeColors[key]);button.dataset.blade=key;}
+        else button.style.backgroundImage='linear-gradient(0deg,#050813dd,transparent),url('+({wood:'wood',night:'night',storm:'storm',sakura:'sakura',ocean:'ocean',lava:'lava'}[key])+'.png)';
+        const art=document.createElement('i');art.setAttribute('aria-hidden','true');
+        const title=document.createElement('span');title.textContent=name;button.append(art,title);
+        button.onclick=()=>{$(id).value=key;$(id).dispatchEvent(new Event('change'));renderWardrobe();};
+        list.append(button);
+      }
+    }
+  }
+  $('wardrobeButton').onclick=()=>{renderWardrobe();$('wardrobe').showModal();};
+  $('closeWardrobe').onclick=()=>$('wardrobe').close();
+  $('updateGame').hidden=!window.DojoApp;
+  $('updateGame').onclick=()=>window.DojoApp.checkUpdates();
   function updateSound() { $('sound').textContent = sound ? '♫' : '♪̸'; $('sound').setAttribute('aria-label',sound ? '关闭声音' : '开启声音'); }
   updateSound(); $('sound').onclick = () => { initAudio(); sound = !sound; write('dojo-sound',sound ? 'on' : 'off'); updateSound(); if (sound) tone(660,.1); };
   $('help').onclick = () => $('guide').showModal(); $('closeGuide').onclick = () => $('guide').close();
   $('guide').addEventListener('click',event => { if (event.target===$('guide')) $('guide').close(); });
   addEventListener('keydown',event => {
-    if ($('guide').open) return;
+    if ($('guide').open || $('wardrobe').open) return;
     const focusTag = document.activeElement.tagName;
     if ((event.code==='Escape' || event.code==='Space') && !['SELECT','INPUT','TEXTAREA'].includes(focusTag) && !(event.code==='Space' && focusTag==='BUTTON')) {
       if (['countdown','playing','finale','paused'].includes(game.phase)) { event.preventDefault(); pause(); }

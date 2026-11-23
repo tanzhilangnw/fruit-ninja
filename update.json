@@ -1,0 +1,71 @@
+{
+  "version": "71ea84d078fa3e2c",
+  "minShell": 3,
+  "files": [
+    {
+      "name": "engine.js",
+      "size": 13402,
+      "sha256": "06e467e320daa9a7853a87950f62230788f66869ff130818df96884d850b35c1"
+    },
+    {
+      "name": "fruits.png",
+      "size": 2413055,
+      "sha256": "b28ad22130a711873ea5850626a9734ebc047cbf432db01144b1a6beb5ddbf2d"
+    },
+    {
+      "name": "game.js",
+      "size": 25992,
+      "sha256": "bda091cf72ff0c937f1e90e74167a082c2ab85c7922ff285e3f896f8a5cd2497"
+    },
+    {
+      "name": "index.html",
+      "size": 7575,
+      "sha256": "a6f21bc4deae8fac4d4989fcd1a7c3058bbf03204d7294e061d91e9b136cb88b"
+    },
+    {
+      "name": "lava.png",
+      "size": 2002480,
+      "sha256": "af3a30decb55271c21bf880dc45cf2577a86a50489e1654d1b4db07b325d1c22"
+    },
+    {
+      "name": "night.png",
+      "size": 2147935,
+      "sha256": "afaa66630070d4a7079adef1ae6f423adac5de4bebb1cc103116302fba01fbfb"
+    },
+    {
+      "name": "ocean.png",
+      "size": 2084509,
+      "sha256": "444915abc90629ba849306d0bfd4a94084edce76512feb5b7b74e10e8b53c62e"
+    },
+    {
+      "name": "orchard.png",
+      "size": 2516907,
+      "sha256": "05067d5ba72fe528971674d283aeefa297f283189e2ceeeec79365cd995ed59c"
+    },
+    {
+      "name": "sakura.png",
+      "size": 2097292,
+      "sha256": "f54cb14082f9d50c87a34b6456d4359a138af46764d12fa8ad3b3f2dc51dceb9"
+    },
+    {
+      "name": "specials.png",
+      "size": 1474794,
+      "sha256": "5e76972141bdd8c061fce04c69d2676dc2a1b0edc021eaa6b96811a224af9b1d"
+    },
+    {
+      "name": "storm.png",
+      "size": 2429854,
+      "sha256": "90f3bae8273be7eb967885e8e0e0e199f9ef442201c0fb5b8c81d99733a7fcc0"
+    },
+    {
+      "name": "style.css",
+      "size": 16894,
+      "sha256": "515b4a4ef9d361d6451093c7cc40ed9c1380e360919953d30c93f827a404a4c2"
+    },
+    {
+      "name": "wood.png",
+      "size": 2746557,
+      "sha256": "1f3b6a35f64cf8d3c0cb91f709547e6266556f257dd2381893367d4118a56796"
+    }
+  ]
+}

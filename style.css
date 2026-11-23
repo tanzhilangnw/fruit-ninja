@@ -100,3 +100,23 @@ footer { position:absolute; z-index:3; left:38px; right:38px; bottom:22px; displ
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
 
 @media(pointer:coarse) { .overlay,.guide::backdrop { backdrop-filter:none; } }
+
+#dojo[data-background="sakura"] {background:#201020 url('sakura.png') center/cover;}
+#dojo[data-background="ocean"] {background:#071d30 url('ocean.png') center/cover;}
+#dojo[data-background="lava"] {background:#241009 url('lava.png') center/cover;}
+.wardrobe {width:min(850px,95vw);max-height:90dvh;overflow:auto;padding:26px;border:1px solid #b39362;border-radius:16px;background:linear-gradient(150deg,#28202e,#111820);color:#f8e9cb;}
+.wardrobe::backdrop {background:#050810cc;}
+.wardrobe h2 {margin:0;font-family:serif;font-size:28px;}.wardrobe>p {font-size:12px;color:#b8ad9e;}
+.wardrobe h3 {font-size:14px;letter-spacing:3px;margin:25px 0 12px;}
+.cosmetic-grid {display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.cosmetic-card {height:100px;position:relative;overflow:hidden;border:1px solid #ffffff22;border-radius:10px;background:#ffffff06;color:#eadbc2;transition:transform .15s,border-color .15s;}
+.cosmetic-card[aria-pressed="true"] {border:2px solid #ffe1a0;box-shadow:0 0 15px #f9cd6625;}
+.cosmetic-card[aria-pressed="true"]::after {content:'✓';position:absolute;right:6px;top:4px;color:#ffe1a0;}
+.cosmetic-card span {position:absolute;bottom:10px;left:0;right:0;font-size:12px;letter-spacing:2px;}
+.blade-card i {position:absolute;top:33px;left:20%;width:60%;height:4px;border-radius:100%;transform:rotate(-26deg);background:#fff;box-shadow:0 0 8px 3px var(--blade-color),0 0 20px var(--blade-color);}
+.blade-card[data-blade="rainbow"] i,.blade-card[data-blade="galaxy"] i {background:linear-gradient(90deg,#ff83ce,#9afaff,#ffe195);}
+.blade-card[data-blade="ink"] i {height:8px;box-shadow:none;background:linear-gradient(90deg,transparent,#bbc9d7,#fff);}
+.blade-card[data-blade="sakura"] i {border:2px dotted #ffb0d4;height:12px;}
+.dojo-grid {grid-template-columns:repeat(3,1fr);}
+.dojo-card {height:120px;background-size:cover;background-position:center;}
+@media(max-width:600px) {.cosmetic-grid{grid-template-columns:repeat(2,1fr);}.dojo-grid{grid-template-columns:repeat(2,1fr);}.wardrobe{padding:18px;}.loadout{gap:8px;}}

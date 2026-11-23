@@ -122,3 +122,21 @@ git push origin main
 ## 设计参考与素材
 
 玩法参考 Halfbrick 的[原作入门指南](https://www.halfbrick.com/blog/the-ultimate-beginners-guide-to-fruit-ninja)和[街机模式介绍](https://www.halfbrick.com/blog/fruit-ninja-arcade-mode-announced)。水果赏金与缤纷连击为本项目扩展规则。图片为本项目生成的原创素材；未使用官方美术、商标图形或音频。[特殊水果生成说明](docs/art-direction.md)与[外观升级提示词](docs/visual-upgrade.md)记录了 ImageGen 提示词及图集规格。中文衬线字体由 Google Fonts 提供，无法访问时回退到系统字体。本项目与 Halfbrick 无关联。
+
+
+## Android 1.2 · 外观收藏与资源更新
+
+10 种刀锋、6 个道场。主菜单「刀藏 · 道场」打开预览卡片，古木仍为默认；所有外观免费且不改变分数。
+
+安卓 1.2 首次安装后，在主菜单点击「检查更新」，联网下载完整资源并校验 SHA-256，再选择立即进入新版或下次启动生效。下载失败保留当前离线版本。安卓返回键也能打开更新及「恢复内置」对话框，网页损坏时仍可恢复。最高分与设置沿用同一个本地页面地址，不随资源版本变化。
+
+更新仅从本仓库 GitHub Pages 的 HTTPS 地址获取静态游戏资源；不更新安卓原生代码、权限和系统组件。后者仍需重新安装 APK。当前没有安卓真机验证，构建和资源清单校验不能代替设备验证。
+
+发布资源更新时先运行：
+```bash
+python scripts/prepare-update.py
+git add .
+git commit -m "Update game content"
+git push
+```
+脚本生成不可变的 `updates/<version>/` 资源与根目录 `update.json`，请保留已经发布的版本目录。网页端直接随 Pages 发布更新。
