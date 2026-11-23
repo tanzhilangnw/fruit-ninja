@@ -120,3 +120,11 @@ footer { position:absolute; z-index:3; left:38px; right:38px; bottom:22px; displ
 .dojo-grid {grid-template-columns:repeat(3,1fr);}
 .dojo-card {height:120px;background-size:cover;background-position:center;}
 @media(max-width:600px) {.cosmetic-grid{grid-template-columns:repeat(2,1fr);}.dojo-grid{grid-template-columns:repeat(2,1fr);}.wardrobe{padding:18px;}.loadout{gap:8px;}}
+
+.legend-hero{display:grid;grid-template-columns:1.5fr 1fr;align-items:center;gap:16px;margin-top:20px;padding:12px 20px;background:radial-gradient(ellipse at 30% 50%,#6647af44,transparent 70%),#090b16;border:1px solid #ba8dfc66;border-radius:12px;}
+.legend-hero canvas{width:100%;height:auto;display:block;}
+.legend-hero b{font-family:serif;font-size:23px;color:#f4d7ff;}.legend-hero p{font-size:12px;line-height:1.8;color:#c6bdd6;}.legend-hero span{font-size:10px;letter-spacing:2px;color:#dfb47c;}
+.blade-card.legendary-card{height:130px;background:radial-gradient(ellipse,#9960ff25,transparent),#0a0d15;border-color:#c2a46a77;}
+.blade-card.legendary-card i{left:5%;top:5px;width:90%;height:95px;transform:none;box-shadow:none;background-color:transparent;background-size:contain;background-repeat:no-repeat;background-position:center;border:0;}
+.blade-card.legendary-card span{color:#f9d9a1;}
+@media(max-width:600px){.legend-hero{grid-template-columns:1fr;gap:0;text-align:center;padding:12px;}.legend-hero canvas{max-height:150px;object-fit:contain;}.legend-hero p{margin:7px 0;}}

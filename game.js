@@ -9,7 +9,7 @@
   const crops = [[0,0,512,460],[512,0,512,460],[1024,0,512,460],[0,460,512,564],[512,460,512,564],[1024,460,512,564]];
   const juice = ['#f34853','#ffb52e','#f85735','#ffd94c','#ef3258','#f4a743','#78b9ff','#93eaff','#ff8143','#e82b57','#9dde56','#fff16a','#ffb1a0','#bada63','#ff62b4','#ad7cff'];
   const effectNames = { double: '双倍得分', freeze: '冰冻时间', frenzy: '水果狂热' };
-  const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff', rainbow: '#8affdb', sakura: '#ffa8d2', galaxy: '#99aaff', jade: '#83ffd0', ink: '#d7e4ee', solar: '#ffe17a', ocean: '#42d9ff' };
+  const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff', rainbow: '#8affdb', sakura: '#ffa8d2', galaxy: '#99aaff', jade: '#83ffd0', ink: '#d7e4ee', solar: '#ffe17a', ocean: '#42d9ff', void: '#bb86ff', dragon: '#ff8b36', quantum: '#5ceaff' };
   const halves = [], particles = [], stains = [], labels = [], rings = [], trail = [];
   let width = innerWidth, height = innerHeight, lastFrame = 0, activePointer = null, previous = null;
   let shake = 0, flash = 0, messageLife = 0, audio = null, loading = true, hudKey = '', ambient = 0, hudAt = 0;
@@ -114,7 +114,12 @@
       case 'countdown': announce(String(event.number),1.1); tone(330,.1); break;
       case 'start': announce('开切！',.7); tone(660,.15); break;
       case 'slice':
-        split(event.fruit); splash(event.fruit); noise(.1,.13); tone(600+game.stroke.count*70,.06,.04,260);
+        split(event.fruit); splash(event.fruit);
+        if (LegendaryForge.skins[blade]) {
+          rings.push({x:event.fruit.x,y:event.fruit.y,life:.65,color:bladeColors[blade],size:110,skin:blade});
+          splash(event.fruit,mobile ? 7 : 14,bladeColors[blade]);
+          tone({void:180,dragon:95,quantum:1250}[blade],.12,.035,{void:480,dragon:220,quantum:500}[blade]);
+        } noise(.1,.13); tone(600+game.stroke.count*70,.06,.04,260);
         if (event.critical) { label('暴击！ +'+event.points,event.fruit.x,event.fruit.y-40,'#ffed85',32,1.1);
           rings.push({x:event.fruit.x,y:event.fruit.y,life:.5,color:'#ffde56',size:160}); shake = reducedMotion ? 0 : .13;
         } else if (event.points) label('+'+event.points,event.fruit.x,event.fruit.y-15); break;
@@ -213,7 +218,8 @@
     for (const p of particles) { ctx.globalAlpha = clamp(p.life*2,0,1); ctx.fillStyle = p.color;
       ctx.beginPath(); ctx.ellipse(p.x,p.y,p.r,p.r*.7,Math.atan2(p.vy,p.vx),0,Math.PI*2); ctx.fill(); }
     for (const ring of rings) { ctx.globalAlpha = ring.life; ctx.strokeStyle = ring.color; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(ring.x,ring.y,ring.size*(1-ring.life)+10,0,Math.PI*2); ctx.stroke(); }
+      if(ring.skin) LegendaryForge.hit(ctx,ring);
+      else { ctx.beginPath(); ctx.arc(ring.x,ring.y,ring.size*(1-ring.life)+10,0,Math.PI*2); ctx.stroke(); } }
     for (const l of labels) { ctx.globalAlpha = Math.min(1,l.life*3); ctx.font = `900 ${l.size}px system-ui`; ctx.textAlign = 'center';
       ctx.lineJoin = 'round'; ctx.strokeStyle = '#301006'; ctx.lineWidth = 5; ctx.strokeText(l.text,l.x,l.y); ctx.fillStyle = l.color; ctx.fillText(l.text,l.x,l.y); }
     ctx.globalAlpha = 1; ctx.restore();
@@ -224,7 +230,10 @@
         ctx.lineWidth = 3+12*i/trail.length; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(p.x,p.y); ctx.stroke();
         if (!reducedMotion && i%3===0) { ctx.lineWidth=1.5; const offset=Math.sin(i*19)*16;
           ctx.beginPath();
-          if (blade==='violet') { ctx.moveTo(a.x,a.y); ctx.lineTo((a.x+p.x)/2+offset,(a.y+p.y)/2-offset); ctx.lineTo(p.x+offset,p.y+offset); }
+          if (blade==='void') {ctx.moveTo(a.x,a.y);ctx.lineTo(p.x+offset,p.y-14);ctx.lineTo(p.x+offset*.5,p.y+8);}
+          else if(blade==='dragon'){ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+offset,p.y-22);ctx.lineTo(p.x+offset*.4,p.y-4);}
+          else if(blade==='quantum'){for(let k=0;k<6;k++){const angle=k*Math.PI/3;const x=p.x+Math.cos(angle)*9,y=p.y+Math.sin(angle)*9;k?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();}
+          else if (blade==='violet') { ctx.moveTo(a.x,a.y); ctx.lineTo((a.x+p.x)/2+offset,(a.y+p.y)/2-offset); ctx.lineTo(p.x+offset,p.y+offset); }
           else if (blade==='sakura') { ctx.ellipse(p.x+offset,p.y-8,4,7,i,0,Math.PI*2); }
           else if (blade==='galaxy' || blade==='solar') { ctx.moveTo(p.x-9,p.y);ctx.lineTo(p.x+9,p.y);ctx.moveTo(p.x,p.y-9);ctx.lineTo(p.x,p.y+9); }
           else if (blade==='ocean' || blade==='jade') {ctx.arc(p.x+offset,p.y,5+i%5,0,Math.PI*2);}
@@ -235,6 +244,15 @@
       }
       ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.beginPath();
       trail.forEach((p,i)=>i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y)); ctx.stroke(); ctx.restore(); }
+    if (LegendaryForge.skins[blade]) {
+      if(game.phase==='countdown') {
+        const progress=clamp((3-game.countdown)/1.4,0,1);
+        LegendaryForge.draw(ctx,blade,width/2,height*.53,Math.min(width*.78,420),reducedMotion?0:Math.sin(progress*Math.PI)*.55,1);
+      } else if(trail.length>1 && ['playing','finale'].includes(game.phase)) {
+        const tip=trail[trail.length-1],prev=trail[trail.length-2];
+        LegendaryForge.draw(ctx,blade,tip.x-12,tip.y+8,mobile?76:108,Math.atan2(tip.y-prev.y,tip.x-prev.x),.75);
+      }
+    }
     if (flash) { ctx.fillStyle = `rgba(255,190,105,${flash})`; ctx.fillRect(0,0,width,height); }
     if ((game.phase==='menu' || background!=='wood') && !reducedMotion) { ambient+=.008; ctx.fillStyle = background==='storm' ? '#c78fff80' : background==='night' ? '#8af9dd80' : '#ffcc7180';
       for (let i=0;i<12;i++) { ctx.globalAlpha = .1+Math.sin(ambient+i)*.1; ctx.beginPath();
@@ -260,13 +278,18 @@
   $('blade').value = blade; $('background').value = background; $('dojo').dataset.background = background;
   $('blade').onchange = event => { blade = event.target.value; write('dojo-blade',blade); tone(880,.1); };
   $('background').onchange = event => { background = event.target.value; $('dojo').dataset.background = background; write('dojo-background',background); };
-  const bladeNames = {frost:'寒霜',ember:'赤焰',violet:'紫电',rainbow:'虹光',sakura:'落樱',galaxy:'星河',jade:'翡翠',ink:'水墨',solar:'日冕',ocean:'潮汐'};
+  const bladeNames = {void:'虚空裂隙',dragon:'赤龙噬焰',quantum:'量子脉冲',frost:'寒霜',ember:'赤焰',violet:'紫电',rainbow:'虹光',sakura:'落樱',galaxy:'星河',jade:'翡翠',ink:'水墨',solar:'日冕',ocean:'潮汐'};
   const dojoNames = {wood:'古木道场',night:'月下竹境',storm:'雷霆天宫',sakura:'樱月庭院',ocean:'深海神殿',lava:'熔火锻炉'};
   for (const [id,names] of [['blade',bladeNames],['background',dojoNames]]) {
     for (const [key,name] of Object.entries(names)) if (!Array.from($(id).options).some(o=>o.value===key)) $(id).add(new Option(name,key));
   }
   $('blade').value=blade; $('background').value=background;
   function renderWardrobe() {
+    const skin=LegendaryForge.skins[blade];$('legendHero').hidden=!skin;
+    if(skin){$('legendName').textContent=skin.name;$('legendDescription').textContent=skin.description;
+      const preview=$('legendPreview').getContext('2d');preview.clearRect(0,0,800,300);
+      LegendaryForge.ready.then(()=>{preview.clearRect(0,0,800,300);LegendaryForge.draw(preview,blade,400,150,700,0,1);});
+    }
     for (const [id,names] of [['blade',bladeNames],['background',dojoNames]]) {
       const list=$(id+'Cards'); list.replaceChildren();
       for (const [key,name] of Object.entries(names)) {
@@ -301,7 +324,7 @@
     if (image.complete) return image.naturalWidth ? resolve() : reject(new Error('Image load failed'));
     image.onload = resolve; image.onerror = () => reject(new Error('Image load failed')); }); }
   for (const mode of ['classic','arcade','zen']) $(mode).disabled = true;
-  Promise.all([loadImage(atlas),loadImage(specials),loadImage(orchard)]).then(() => {
+  Promise.all([loadImage(atlas),loadImage(specials),loadImage(orchard),LegendaryForge.ready]).then(() => {
     loading = false; $('loadStatus').hidden = true; for (const mode of ['classic','arcade','zen']) $(mode).disabled = false;
   }).catch(() => { $('loadStatus').textContent = '素材暂时加载失败，请刷新重试'; });
   function frame(now) { const dt = Math.min((now-lastFrame)/1000 || 0,.05); lastFrame = now;

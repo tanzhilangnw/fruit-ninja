@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%233d8236'/%3E%3Cpath d='M8 34h48a24 24 0 0 1-48 0' fill='%23ef4b45' stroke='%23c8ed9b' stroke-width='4'/%3E%3Cpath d='m23 42 2 4m11-4 2 4' stroke='%2325140d' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css?v=2">
   <script defer src="engine.js?v=2"></script>
+  <script defer src="legendary.js?v=1"></script>
   <script defer src="game.js?v=2"></script>
 </head>
 <body>
@@ -56,5 +57,5 @@
   <div class="fruit-guide"><b>果实赏金 · 11 种水果</b><p>苹果 / 橙子 / 柠檬 2 分 · 西瓜 / 草莓 / 梨 3 分<br>猕猴桃 / 蜜桃 4 分 · 菠萝 / 葡萄 5 分 · 火龙果 6 分</p><p>一刀切中 3 个以上水果，额外获得这刀的基础分；同刀包含至少 3 种水果，再奖励每种 3 分，触发「缤纷连击」。双倍香蕉也会加倍这些奖励。</p></div>
   <p class="guide-foot">香蕉持续 8 秒，可叠加。街机连续做出连击，依次触发 BLITZ、SUPER BLITZ、MEGA BLITZ；6 秒没有连击则重置。暴击额外 +10 分。经典前 15 秒没有炸弹，随后逐渐加速。新计分独立记录最高分，旧版纪录仍保存在浏览器中。</p>
 </dialog>
-<dialog id="wardrobe" class="wardrobe"><div class="guide-head"><div><p class="kicker">THE COLLECTION</p><h2>刀藏与道场</h2></div><button id="closeWardrobe" class="icon-button" aria-label="关闭外观收藏">×</button></div><p>随心搭配 · 全部免费 · 外观不改变计分</p><h3>十柄刀锋</h3><div id="bladeCards" class="cosmetic-grid"></div><h3>六方天地</h3><div id="backgroundCards" class="cosmetic-grid dojo-grid"></div></dialog></body>
+<dialog id="wardrobe" class="wardrobe"><div class="guide-head"><div><p class="kicker">THE COLLECTION</p><h2>刀藏与道场</h2></div><button id="closeWardrobe" class="icon-button" aria-label="关闭外观收藏">×</button></div><p>随心搭配 · 全部免费 · 外观不改变计分</p><section id="legendHero" class="legend-hero" hidden><canvas id="legendPreview" width="800" height="300" aria-label="传说刀皮实体预览"></canvas><div><b id="legendName"></b><p id="legendDescription"></p><span>传说典藏 · 已全部解锁</span></div></section><h3>十三柄刀锋 · 三款传说典藏</h3><div id="bladeCards" class="cosmetic-grid"></div><h3>六方天地</h3><div id="backgroundCards" class="cosmetic-grid dojo-grid"></div></dialog></body>
 </html>
