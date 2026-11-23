@@ -1,0 +1,11 @@
+plugins { id 'com.android.application' }
+android {
+ namespace 'com.fruitdojo.game'
+ compileSdk 35
+ defaultConfig { applicationId 'com.fruitdojo.game'; minSdk 23; targetSdk 35; versionCode 1; versionName '1.0' }
+}
+tasks.register('copyGame', Copy) {
+ from('../..') { include '*.html', '*.js', '*.css', '*.png' }
+ into 'src/main/assets'
+}
+preBuild.dependsOn copyGame

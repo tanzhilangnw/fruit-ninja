@@ -12,9 +12,10 @@
   const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff', rainbow: '#8affdb' };
   const halves = [], particles = [], stains = [], labels = [], rings = [], trail = [];
   let width = innerWidth, height = innerHeight, lastFrame = 0, activePointer = null, previous = null;
-  let shake = 0, flash = 0, messageLife = 0, audio = null, loading = true, hudKey = '', ambient = 0;
+  let shake = 0, flash = 0, messageLife = 0, audio = null, loading = true, hudKey = '', ambient = 0, hudAt = 0;
   const random = (min,max) => min + Math.random() * (max-min);
   const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
+  const mobile = matchMedia('(pointer: coarse)').matches;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   function read(key,fallback) { try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; } }
   function write(key,value) { try { localStorage.setItem(key,String(value)); } catch {} }
@@ -25,7 +26,7 @@
 
   function resize() {
     width = canvas.clientWidth; height = canvas.clientHeight;
-    const ratio = Math.min(devicePixelRatio || 1,2);
+    const ratio = Math.min(devicePixelRatio || 1,mobile ? 1.25 : 2);
     canvas.width = Math.round(width*ratio); canvas.height = Math.round(height*ratio);
     ctx.setTransform(ratio,0,0,ratio,0,0); game.width = width; game.height = height;
   }
@@ -92,11 +93,11 @@
     $('again').textContent = '再来一局'; tone(440,.25,.08); tone(660,.5,.06);
   }
   function splash(fruit,count = 26,color = juice[fruit.type]) {
-    for (let i=0;i<(reducedMotion ? Math.min(count,12) : count);i++) {
+    for (let i=0;i<(reducedMotion ? Math.min(count,12) : mobile ? Math.min(count,16) : count);i++) {
       const angle = random(0,Math.PI*2), speed = random(90,460);
       particles.push({x:fruit.x,y:fruit.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:random(2,7),life:random(.45,1.1),color});
     }
-    if (particles.length>850) particles.splice(0,particles.length-850);
+    if (particles.length>(mobile ? 220 : 850)) particles.splice(0,particles.length-(mobile ? 220 : 850));
     if (fruit.type<5 || fruit.type===9) {
       const stain = {x:fruit.x,y:fruit.y,r:fruit.r*.7,color,life:6,spots:[]};
       for (let i=0;i<12;i++) { const a = random(0,Math.PI*2), spread = random(.6,2.2)*fruit.r;
@@ -198,7 +199,7 @@
     ctx.globalAlpha = 1;
     for (const f of game.entities) {
       if (f.dead) continue;
-      if (f.special || f.boss) { ctx.save(); ctx.shadowColor = juice[f.type]; ctx.shadowBlur = 28;
+      if (f.special || f.boss) { ctx.save(); ctx.shadowColor = juice[f.type]; ctx.shadowBlur = mobile ? 0 : 28;
         ctx.strokeStyle = juice[f.type]+'99'; ctx.lineWidth = 2; ctx.beginPath();
         ctx.arc(f.x,f.y,f.r*(1.13+Math.sin(now/150)*.05),0,Math.PI*2); ctx.stroke(); ctx.restore(); }
       sprite(f);
@@ -217,7 +218,7 @@
       ctx.lineJoin = 'round'; ctx.strokeStyle = '#301006'; ctx.lineWidth = 5; ctx.strokeText(l.text,l.x,l.y); ctx.fillStyle = l.color; ctx.fillText(l.text,l.x,l.y); }
     ctx.globalAlpha = 1; ctx.restore();
     while (trail.length && now-trail[0].t>240) trail.shift();
-    if (trail.length>1) { ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowColor = bladeColors[blade]; ctx.shadowBlur = 20;
+    if (trail.length>1) { ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowColor = bladeColors[blade]; ctx.shadowBlur = mobile ? 0 : 20;
       for (let i=1;i<trail.length;i++) { const p=trail[i], a=trail[i-1], age=now-p.t;
         ctx.globalAlpha = clamp(1-age/240,0,1); ctx.strokeStyle = blade==='rainbow' ? `hsl(${(now/8+i*18)%360} 100% 72%)` : bladeColors[blade];
         ctx.lineWidth = 3+12*i/trail.length; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(p.x,p.y); ctx.stroke();
@@ -275,7 +276,7 @@
     loading = false; $('loadStatus').hidden = true; for (const mode of ['classic','arcade','zen']) $(mode).disabled = false;
   }).catch(() => { $('loadStatus').textContent = '素材暂时加载失败，请刷新重试'; });
   function frame(now) { const dt = Math.min((now-lastFrame)/1000 || 0,.05); lastFrame = now;
-    game.update(dt); handleEvents(); updateVisuals(dt); updateHud(); draw(now); requestAnimationFrame(frame); }
+    game.update(dt); handleEvents(); updateVisuals(dt); if (!hudAt || now-hudAt>100) { updateHud(); hudAt=now; } draw(now); requestAnimationFrame(frame); }
   updateHud(); requestAnimationFrame(frame);
   const model = document.modelContext;
   if (model?.registerTool) {
