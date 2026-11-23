@@ -33,9 +33,9 @@ public class MainActivity extends Activity {
   game.setWebViewClient(new WebViewClient(){
    @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){return true;}
    @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest request) {
-    String prefix="file:///android_asset/";
+    String prefix="https://appassets.androidplatform.net/assets/";
     if(!request.getUrl().toString().startsWith(prefix)) return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));
-    String name=request.getUrl().getPath().replaceFirst("^/android_asset/","");
+    String name=request.getUrl().getPath().replaceFirst("^/assets/","");
     if(!name.matches("[a-zA-Z0-9_.-]+")) return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));
     try {
      InputStream stream=active==null?getAssets().open(name):new FileInputStream(new File(active,name));
@@ -44,7 +44,7 @@ public class MainActivity extends Activity {
     }catch(Exception e){return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));}
    }
   });
-  game.loadUrl("file:///android_asset/index.html");
+  game.loadUrl("https://appassets.androidplatform.net/assets/index.html");
  }
  private void showUpdate(){
   new AlertDialog.Builder(this).setTitle("资源更新").setMessage("当前资源："+preferences.getString("active","内置 1.2")+"\n下载成功后可重启生效，离线仍可继续玩。").setPositiveButton("检查并下载",(d,w)->check())
