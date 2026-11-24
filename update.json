@@ -1,5 +1,5 @@
 {
-  "version": "892acd218ec63c85",
+  "version": "59ce506755a06b53",
   "minShell": 3,
   "files": [
     {
@@ -14,8 +14,8 @@
     },
     {
       "name": "game.js",
-      "size": 27917,
-      "sha256": "0ac5bb14eba9b5bc38df61edcfa4d711160bedb5d1b145dc603a5e72e6ac9f95"
+      "size": 28464,
+      "sha256": "af8b0237987012b1609451f717b2ac9848562a0cdec89ad00eb9fcff72a4e9b6"
     },
     {
       "name": "index.html",
@@ -44,8 +44,8 @@
     },
     {
       "name": "legendary.js",
-      "size": 2171,
-      "sha256": "e85aa90edc4ce1be07422848fbcfb8f9d1989099afc6eebfc716b7b37ab8333d"
+      "size": 2717,
+      "sha256": "86f6381b79a1c3fcc957dfee863db99dfaf83f1850431105934776837e6c5205"
     },
     {
       "name": "night.png",

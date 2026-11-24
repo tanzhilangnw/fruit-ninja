@@ -14,6 +14,14 @@ window.LegendaryForge = (() => {
     ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.globalAlpha=alpha;
     ctx.drawImage(image,-width/2,-width*image.naturalHeight/image.naturalWidth/2,width,width*image.naturalHeight/image.naturalWidth);ctx.restore();
   }
+  // Sprite tip anchors are measured in normalized image coordinates.
+  const tips = {void:[.98,.49],dragon:[.98,.27],quantum:[.98,.86]};
+  function equipped(ctx,key,x,y,width,angle,alpha=1) {
+    const image=images[key],tip=tips[key];if(!image?.naturalWidth||!tip)return;
+    const height=width*image.naturalHeight/image.naturalWidth;
+    ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.globalAlpha=alpha;
+    ctx.drawImage(image,-width*tip[0],-height*tip[1],width,height);ctx.restore();
+  }
   function hit(ctx,ring) {
     const r=15+ring.size*(1-ring.life),t=1-ring.life;
     ctx.save();ctx.translate(ring.x,ring.y);ctx.rotate(t*1.8);ctx.lineWidth=2;
@@ -28,5 +36,5 @@ window.LegendaryForge = (() => {
     }
     ctx.restore();
   }
-  return {skins,ready,draw,hit};
+  return {skins,ready,draw,equipped,hit};
 })();

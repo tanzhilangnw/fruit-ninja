@@ -12,7 +12,7 @@
   const bladeColors = { frost: '#9ce8ff', ember: '#ffab55', violet: '#d5a9ff', rainbow: '#8affdb', sakura: '#ffa8d2', galaxy: '#99aaff', jade: '#83ffd0', ink: '#d7e4ee', solar: '#ffe17a', ocean: '#42d9ff', void: '#bb86ff', dragon: '#ff8b36', quantum: '#5ceaff' };
   const halves = [], particles = [], stains = [], labels = [], rings = [], trail = [];
   let width = innerWidth, height = innerHeight, lastFrame = 0, activePointer = null, previous = null;
-  let shake = 0, flash = 0, messageLife = 0, audio = null, loading = true, hudKey = '', ambient = 0, hudAt = 0;
+  let shake = 0, flash = 0, messageLife = 0, audio = null, loading = true, hudKey = '', ambient = 0, hudAt = 0, bladeAngle = 0;
   const random = (min,max) => min + Math.random() * (max-min);
   const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
   const mobile = matchMedia('(pointer: coarse)').matches;
@@ -60,7 +60,7 @@
   }
   function clearVisuals() {
     halves.length = particles.length = stains.length = labels.length = rings.length = trail.length = 0;
-    activePointer = previous = null; shake = flash = messageLife = 0; $('centerMessage').textContent = '';
+    activePointer = previous = null; bladeAngle=0; shake = flash = messageLife = 0; $('centerMessage').textContent = '';
   }
   function start(mode) {
     if (loading) return;
@@ -116,8 +116,9 @@
       case 'slice':
         split(event.fruit); splash(event.fruit);
         if (LegendaryForge.skins[blade]) {
-          rings.push({x:event.fruit.x,y:event.fruit.y,life:.65,color:bladeColors[blade],size:110,skin:blade});
-          splash(event.fruit,mobile ? 7 : 14,bladeColors[blade]);
+          rings.push({x:event.fruit.x,y:event.fruit.y,life:reducedMotion ? .25 : .55,color:bladeColors[blade],size:mobile ? 60 : 85,skin:blade});
+          if(rings.length>60)rings.splice(0,rings.length-60);
+          if(!reducedMotion)splash(event.fruit,mobile ? 5 : 12,bladeColors[blade]);
           tone({void:180,dragon:95,quantum:1250}[blade],.12,.035,{void:480,dragon:220,quantum:500}[blade]);
         } noise(.1,.13); tone(600+game.stroke.count*70,.06,.04,260);
         if (event.critical) { label('暴击！ +'+event.points,event.fruit.x,event.fruit.y-40,'#ffed85',32,1.1);
@@ -155,7 +156,7 @@
       $('status').classList.toggle('danger',state.mode==='classic' ? state.misses>0 : state.seconds<=10);
       $('pause').textContent = state.phase==='paused' ? '▶' : 'Ⅱ';
       $('pause').setAttribute('aria-label',state.phase==='paused' ? '继续游戏' : '暂停游戏');
-      $('footerMode').textContent = FruitEngine.MODES[state.mode].name+'模式';
+      $('footerMode').textContent = FruitEngine.MODES[state.mode].name+'模式'+(LegendaryForge.skins[blade] ? ' · '+LegendaryForge.skins[blade].name : '');
       for (const mode of ['classic','arcade','zen']) $('best-'+mode).textContent = best(mode);
     }
     for (const effect of ['double','freeze','frenzy']) {
@@ -249,8 +250,9 @@
         const progress=clamp((3-game.countdown)/1.4,0,1);
         LegendaryForge.draw(ctx,blade,width/2,height*.53,Math.min(width*.78,420),reducedMotion?0:Math.sin(progress*Math.PI)*.55,1);
       } else if(trail.length>1 && ['playing','finale'].includes(game.phase)) {
-        const tip=trail[trail.length-1],prev=trail[trail.length-2];
-        LegendaryForge.draw(ctx,blade,tip.x-12,tip.y+8,mobile?76:108,Math.atan2(tip.y-prev.y,tip.x-prev.x),.75);
+        const tip=trail[trail.length-1],age=now-tip.t;
+        const size=clamp(width*.22,72,mobile?100:132);
+        LegendaryForge.equipped(ctx,blade,tip.x,tip.y,size,bladeAngle,clamp(1-age/240,0,.9));
       }
     }
     if (flash) { ctx.fillStyle = `rgba(255,190,105,${flash})`; ctx.fillRect(0,0,width,height); }
@@ -267,7 +269,15 @@
     if (activePointer!==event.pointerId || !['playing','finale'].includes(game.phase)) return;
     event.preventDefault(); const samples = event.getCoalescedEvents?.();
     for (const sample of samples?.length ? samples : [event]) { const next = point(sample);
-      if (previous) game.swipe(previous,next); trail.push(next); previous = next; }
+      if (previous) {
+        const dx=next.x-previous.x,dy=next.y-previous.y;
+        if(dx*dx+dy*dy>9) {
+          const target=Math.atan2(dy,dx),delta=Math.atan2(Math.sin(target-bladeAngle),Math.cos(target-bladeAngle));
+          bladeAngle+=delta*.55;
+        }
+        game.swipe(previous,next);
+      }
+      trail.push(next); previous = next; }
     if (trail.length>180) trail.splice(0,trail.length-180); handleEvents(); updateHud();
   });
   function release(event) { if (event && activePointer!==event.pointerId) return;
@@ -276,7 +286,7 @@
   for (const mode of ['classic','arcade','zen']) $(mode).onclick = () => start(mode);
   $('again').onclick = () => game.phase==='paused' ? pause() : start(game.mode); $('home').onclick = home; $('pause').onclick = pause;
   $('blade').value = blade; $('background').value = background; $('dojo').dataset.background = background;
-  $('blade').onchange = event => { blade = event.target.value; write('dojo-blade',blade); tone(880,.1); };
+  $('blade').onchange = event => { blade = event.target.value; write('dojo-blade',blade); hudKey=''; updateHud(); tone(880,.1); };
   $('background').onchange = event => { background = event.target.value; $('dojo').dataset.background = background; write('dojo-background',background); };
   const bladeNames = {void:'虚空裂隙',dragon:'赤龙噬焰',quantum:'量子脉冲',frost:'寒霜',ember:'赤焰',violet:'紫电',rainbow:'虹光',sakura:'落樱',galaxy:'星河',jade:'翡翠',ink:'水墨',solar:'日冕',ocean:'潮汐'};
   const dojoNames = {wood:'古木道场',night:'月下竹境',storm:'雷霆天宫',sakura:'樱月庭院',ocean:'深海神殿',lava:'熔火锻炉'};

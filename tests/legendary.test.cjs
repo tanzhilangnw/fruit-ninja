@@ -26,3 +26,15 @@ test('hit effects have distinct geometry; missing sprites reject resource readin
   assert.equal(new Set(signatures).size,3);
   await assert.rejects(forge(true).ready,/Knife asset failed/);
 });
+test('equipped blade anchors its cutting tip exactly to the pointer at every size',async()=>{
+  const f=forge();await f.ready;
+  const tips={void:[.98,.49],dragon:[.98,.27],quantum:[.98,.86]};
+  for(const key of Object.keys(tips))for(const size of [72,100,132]){
+    let imageArgs,position;
+    const ctx={save(){},restore(){},translate(x,y){position=[x,y];},rotate(){},drawImage(...args){imageArgs=args;}};
+    f.equipped(ctx,key,40,80,size,Math.PI/2);
+    assert.deepEqual(position,[40,80]);
+    assert.equal(imageArgs[1]+size*tips[key][0],0);
+    assert.equal(imageArgs[2]+size/3*tips[key][1],0);
+  }
+});
